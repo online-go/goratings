@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.coverage-coverage
+
+*.csv.gz
+*.db-journal
+data/scripts/*.db
