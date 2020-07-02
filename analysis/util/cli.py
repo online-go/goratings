@@ -1,7 +1,9 @@
 import argparse
-from .config import config
 
 
 __all__ = ['cli']
 
-cli = argparse.ArgumentParser(description = 'Go ratings analysis test code')
+cli = argparse.ArgumentParser(
+    description = 'Go ratings analysis test code',
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+)

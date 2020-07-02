@@ -12,6 +12,8 @@ class EloEntry:
     def expected(self, opponent: 'EloEntry') -> float:
         return 1 / (1 + 10 ** ((opponent.rating - self.rating) / 400))
 
+    def __str__(self) -> str:
+        return "%6.2f" % self.rating
 
 def elo_update(
         player: EloEntry, opponent: EloEntry, outcome: float

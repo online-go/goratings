@@ -1,15 +1,15 @@
 import abc
+from typing import Any
 
-from goratings.math.glicko2 import Glicko2Entry
 
 __all__ = ["Storage"]
 
 
 class Storage(abc.ABC):
     @abc.abstractmethod
-    def getGlicko2Entry(self, player_id: int) -> Glicko2Entry:
+    def get(self, player_id: int) -> Any:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def setGlicko2Entry(self, player_id: int, entry: Glicko2Entry) -> None:
+    def set(self, player_id: int, entry: Any) -> None:
         raise NotImplementedError

@@ -21,7 +21,6 @@ GLICKO2_SCALE = 173.7178
 
 
 class Glicko2Entry:
-    id: int
     rating: float
     deviation: float
     volatility: float
@@ -31,7 +30,6 @@ class Glicko2Entry:
     def __init__(
         self, rating: float = 1500, deviation: float = 350, volatility: float = 0.06
     ) -> None:
-        self.id = 0
         self.rating = rating
         self.deviation = deviation
         self.volatility = volatility
@@ -39,8 +37,7 @@ class Glicko2Entry:
         self.phi = self.deviation / GLICKO2_SCALE
 
     def __str__(self) -> str:
-        return "[%6s] %.2f +- %.2f (%.6f)" % (
-            repr(self.id),
+        return "%7.2f +- %6.2f (%.6f)" % (
             self.rating,
             self.deviation,
             self.volatility,
@@ -54,7 +51,6 @@ class Glicko2Entry:
             self.deviation + rd_adjustment,
             self.volatility,
         )
-        ret.id = self.id
         return ret
 
     def expand_deviation_because_no_games_played(
@@ -174,9 +170,18 @@ def glicko2_update(
         deviation=min(MAX_RD, max(MIN_RD, GLICKO2_SCALE * phi_prime)),
         volatility=min(0.15, max(0.01, new_volatility)),
     )
-    ret.id = player.id
     return ret
 
 
-def glicko2_configure(TODO:int=1) -> None:
-    pass
+def glicko2_configure(
+    tao: float,
+    min_rd: float,
+    max_rd: float,
+) -> None:
+    global TAO
+    global MIN_RD
+    global MAX_RD
+
+    TAO = tao
+    MIN_RD = min_rd
+    MAX_RD = max_rd

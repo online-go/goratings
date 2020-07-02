@@ -1,9 +1,13 @@
 from collections import defaultdict
 from math import isnan
 from typing import DefaultDict, Union
+from goratings.interfaces import Storage
+import os
+import configparser
 import sys
 
 from .Glicko2Analytics import Glicko2Analytics
+from .rating2rank import rating_to_rank
 
 __all__ = ["TallyGameAnalytics"]
 
@@ -26,9 +30,11 @@ class TallyGameAnalytics:
     black_wins: ResultStorageType
     predictions: ResultStorageType
     count: ResultStorageType
+    storage: Storage
 
-    def __init__(self) -> None:
+    def __init__(self, storage: Storage) -> None:
         self.games_ignored = 0
+        self.storage = storage
         self.black_wins = defaultdict(
             lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
         )
@@ -54,7 +60,7 @@ class TallyGameAnalytics:
             for speed in [ALL, result.game.speed]:
                 for rank in [
                     ALL,
-                    str(int(result.black_rank) // 5) + "+5",
+                    str((int(result.black_rank) // 5)*5) + "+5",
                     int(result.black_rank),
                 ]:
                     for handicap in [ALL, result.game.handicap]:
@@ -69,6 +75,31 @@ class TallyGameAnalytics:
                             self.count[size][speed][rank][handicap] += 1
 
     def print(self) -> None:
+        self.print_handicap_performance()
+        self.print_inspected_players()
+
+    def print_inspected_players(self) -> None:
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        fname = 'players_to_inspect.ini'
+        if os.path.exists(fname):
+            pass
+        if os.path.exists('analytics/' + fname):
+            fname = 'analytics/' + fname
+        if os.path.exists('../' + fname):
+            fname = '../' + fname
+        if os.path.exists(fname):
+            config.read(fname)
+            if 'ogs' in config:
+                print('')
+                print('Inspected users from %s' % fname)
+                for name in config['ogs']:
+                    id = int(config['ogs'][name])
+                    entry = self.storage.get(id)
+                    print('%20s    %3s     %s' % (name, num2rank(rating_to_rank(entry.rating)), str(entry)))
+
+
+    def print_handicap_performance(self) -> None:
         for size in [9, 13, 19, ALL]:
             print('')
             if size == ALL:
@@ -90,6 +121,7 @@ class TallyGameAnalytics:
                         ((self.black_wins[size][ALL][rankband][handicap] / ct if ct else 0) * 100.0)
                     )
                 sys.stdout.write('\n')
+
 
 
 
