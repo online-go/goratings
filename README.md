@@ -44,3 +44,9 @@ For example, this should work out of the box:
 ```
 analysis/analyze_glicko2_one_game_at_a_time.py
 ```
+
+# Parameter tuning
+
+The analysis scripts import some common utility code that includes some parameters
+to tune, such as the variables used in converting ratings to ranks, glicko2 variables,
+and that sort of thing. For a full up to date list, run an analysis script with `--help`
