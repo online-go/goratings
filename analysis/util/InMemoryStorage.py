@@ -1,8 +1,7 @@
-from typing import Any, Dict, DefaultDict, Tuple, List
-
 from collections import defaultdict
+from typing import Any, DefaultDict, Dict, List, Tuple
+
 from goratings.interfaces import Storage
-from goratings.interfaces import GameRecord
 
 __all__ = ["InMemoryStorage"]
 
@@ -34,7 +33,6 @@ class InMemoryStorage(Storage):
 
     def set_timeout_flag(self, player_id: int, tf: bool) -> None:
         self._timeout_flags[player_id] = tf
-
 
     # We assume we add these entries in ascending order (by timestamp).
     def add_rating_history(self, player_id: int, timestamp: int, entry: Any) -> None:

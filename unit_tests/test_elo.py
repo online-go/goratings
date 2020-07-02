@@ -7,8 +7,9 @@ def test_elo_defaults():
     new_a = elo_update(a, b, 1)
     new_b = elo_update(b, a, 0)
 
-    assert round(new_a.rating, 1) == 1207.7
+    assert round(new_a.rating, 2) == 1207.69
     assert round(new_b.rating, 1) == 992.3
+    assert str(new_a) == "1207.69"
 
 
 def test_elo_k30():

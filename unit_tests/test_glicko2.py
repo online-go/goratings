@@ -2,7 +2,9 @@ from goratings.math.glicko2 import Glicko2Entry, glicko2_configure, glicko2_upda
 
 
 def test_glicko2():
-    glicko2_configure()
+    glicko2_configure(
+        tao=0.5, min_rd=10, max_rd=500,
+    )
 
     player = Glicko2Entry(1500, 200, 0.06)
     a = Glicko2Entry(1400, 30, 0.06)
