@@ -16,13 +16,13 @@ class Glicko2Analytics(GameAnalytics):
         self,
         skipped: bool,
         game: GameRecord,
-        expected_win_rate: float,
-        black_rating: float,
-        white_rating: float,
-        black_deviation: float,
-        white_deviation: float,
-        black_rank: float,
-        white_rank: float,
+        expected_win_rate: float = 0,
+        black_rating: float = 0,
+        white_rating: float = 0,
+        black_deviation: float = 0,
+        white_deviation: float = 0,
+        black_rank: float = 0,
+        white_rank: float = 0,
     ) -> None:
         super().__init__(skipped, game)
         self.expected_win_rate = expected_win_rate
