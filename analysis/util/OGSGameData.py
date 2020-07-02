@@ -1,26 +1,37 @@
-import pickle
-import sqlite3
 import os
+import sqlite3
 import sys
 from time import time
-from typing import Iterator, List
+from typing import Iterator
 
 from goratings.interfaces import GameRecord
-from .cli import cli
-from .config import config
+
+from .CLI import cli
+from .Config import config
 
 __all__ = ["OGSGameData"]
 
 
-cli.add_argument('--games', dest="num_games", type=int, default=0, help="Number of games to process, 0 for all")
+cli.add_argument(
+    "--games",
+    dest="num_games",
+    type=int,
+    default=0,
+    help="Number of games to process, 0 for all",
+)
+
 
 class OGSGameData:
     _conn: sqlite3.Connection
     quiet: bool
 
-    def __init__(self, sqlite_filename: str = "data/ogs-data.db", quiet: bool = False) -> None:
-        if not os.path.exists(sqlite_filename) and os.path.exists("../" + sqlite_filename):
-            sqlite_filename = '../' + sqlite_filename
+    def __init__(
+        self, sqlite_filename: str = "data/ogs-data.db", quiet: bool = False
+    ) -> None:
+        if not os.path.exists(sqlite_filename) and os.path.exists(
+            "../" + sqlite_filename
+        ):
+            sqlite_filename = "../" + sqlite_filename
 
         self._conn = sqlite3.connect(sqlite_filename)
         self.quiet = quiet
@@ -28,7 +39,7 @@ class OGSGameData:
     def __iter__(self) -> Iterator[GameRecord]:
         c = self._conn.cursor()
         limit = config.args.num_games or 99999999999
-        t = 0
+        t = 0.0
         ct = 0
         num_records = 0
 
@@ -60,15 +71,17 @@ class OGSGameData:
                 LIMIT
                     ?
             """,
-            [limit]
+            [limit],
         ):
-
             ct += 1
             if not self.quiet and time() - t > 0.05:
                 t = time()
                 records_per_second = ct / (time() - started)
                 seconds_left = (num_records - ct) / records_per_second
-                sys.stdout.write(f'\r{ct:12n} / {num_records:12n} games processed. {seconds_left:6.1f}s remaining')
+                sys.stdout.write(
+                    f"\r{ct:12n} / {num_records:12n} games processed. "
+                    + f"{seconds_left:6.1f}s remaining"
+                )
                 sys.stdout.flush()
 
             yield GameRecord(
@@ -86,6 +99,8 @@ class OGSGameData:
 
         if not self.quiet:
             time_elapsed = time() - started
-            sys.stdout.write(f'\n{ct:n} games processed in {time_elapsed:.1f} seconds\n')
+            sys.stdout.write(
+                f"\n{ct:n} games processed in {time_elapsed:.1f} seconds\n"
+            )
             sys.stdout.flush()
         c.close()

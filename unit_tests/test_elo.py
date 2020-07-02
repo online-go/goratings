@@ -1,8 +1,4 @@
-from goratings.math.elo import (
-    EloEntry,
-    elo_update,
-    elo_configure,
-)
+from goratings.math.elo import EloEntry, elo_configure, elo_update
 
 
 def test_elo_defaults():
@@ -14,6 +10,7 @@ def test_elo_defaults():
     assert round(new_a.rating, 1) == 1207.7
     assert round(new_b.rating, 1) == 992.3
 
+
 def test_elo_k30():
     elo_configure(k=30)
 
@@ -24,4 +21,3 @@ def test_elo_k30():
 
     assert round(new_a.rating, 1) == 1207.2
     assert round(new_b.rating, 1) == 992.8
-

@@ -1,14 +1,10 @@
+from .CLI import cli
+from .Config import config
+from .Glicko2Analytics import Glicko2Analytics
 from .InMemoryStorage import InMemoryStorage
 from .OGSGameData import OGSGameData
+from .RatingMath import get_handicap_adjustment, rank_to_rating, rating_to_rank
 from .TallyGameAnalytics import TallyGameAnalytics
-from .Glicko2Analytics import Glicko2Analytics
-from .cli import cli
-from .config import config
-from .rating2rank import (
-    rating_to_rank,
-    rank_to_rating,
-    get_handicap_adjustment,
-)
 
 __all__ = [
     "cli",

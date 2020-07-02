@@ -1,22 +1,16 @@
 #!/usr/bin/env -S PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=..:. pypy3
 
 from analysis.util import (
-    cli,
-    config,
     Glicko2Analytics,
     InMemoryStorage,
     OGSGameData,
     TallyGameAnalytics,
-    rating_to_rank,
+    cli,
+    config,
     get_handicap_adjustment,
+    rating_to_rank,
 )
-
-from goratings.interfaces import (
-    GameRecord,
-    RatingSystem,
-    Storage,
-)
-
+from goratings.interfaces import GameRecord, RatingSystem, Storage
 from goratings.math.glicko2 import Glicko2Entry, glicko2_update
 
 
@@ -78,6 +72,6 @@ tally = TallyGameAnalytics(storage)
 
 for game in ogs_game_data:
     analytics = engine.process_game(game)
-    tally.addGlicko2Analytics(analytics)
+    tally.add_glicko2_analytics(analytics)
 
 tally.print()

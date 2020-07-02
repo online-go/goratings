@@ -22,6 +22,6 @@ lint: .venv
 format black: .venv
 	isort -y --multi-line=3 --trailing-comma --force-grid-wrap=0 --use-parentheses --line-width=88 
 	.venv/bin/tox -e linters --notest
-	.tox/linters/bin/black --target-version py38 goratings unit_tests 
+	.tox/linters/bin/black --target-version py38 goratings unit_tests analysis/util
 
 .PHONY: lint test format

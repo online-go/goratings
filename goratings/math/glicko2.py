@@ -1,4 +1,4 @@
-from math import exp, isnan, log, pi, sqrt
+from math import exp, log, pi, sqrt
 from typing import List, Tuple
 
 __all__ = ["Glicko2Entry", "glicko2_update", "glicko2_configure"]
@@ -7,16 +7,16 @@ __all__ = ["Glicko2Entry", "glicko2_update", "glicko2_configure"]
 EPSILON = 0.000001
 # TAO = 1.2
 TAO = 0.5
-LOSS = 0
+LOSS = 0.0
 DRAW = 0.5
-WIN = 1
-MAX_RD = 500
-MIN_RD = 30
+WIN = 1.0
+MAX_RD = 500.0
+MIN_RD = 30.0
 MIN_VOLATILITY = 0.01
 MAX_VOLATILITY = 0.15
-MIN_RATING = 100
-MAX_RATING = 6000
-PROVISIONAL_RATING_CUTOFF = 160
+MIN_RATING = 100.0
+MAX_RATING = 6000.0
+PROVISIONAL_RATING_CUTOFF = 160.0
 GLICKO2_SCALE = 173.7178
 
 
@@ -37,11 +37,7 @@ class Glicko2Entry:
         self.phi = self.deviation / GLICKO2_SCALE
 
     def __str__(self) -> str:
-        return "%7.2f +- %6.2f (%.6f)" % (
-            self.rating,
-            self.deviation,
-            self.volatility,
-        )
+        return "%7.2f +- %6.2f (%.6f)" % (self.rating, self.deviation, self.volatility,)
 
     def copy(
         self, rating_adjustment: float = 0.0, rd_adjustment: float = 0.0
@@ -62,8 +58,7 @@ class Glicko2Entry:
         global MAX_RD
         global MIN_RD
 
-        for i in range(n_periods):
-            init = self.deviation
+        for _i in range(n_periods):
             phi_prime = sqrt(self.phi ** 2 + self.volatility ** 2)
             self.deviation = min(MAX_RD, max(MIN_RD, GLICKO2_SCALE * phi_prime))
             self.phi = self.deviation / GLICKO2_SCALE
@@ -133,7 +128,7 @@ def glicko2_update(
     else:
         k = 1
         safety = 100
-        while f(a - k * TAO) < 0 and safety > 0: # pragma: no cover
+        while f(a - k * TAO) < 0 and safety > 0:  # pragma: no cover
             safety -= 1
             k += 1
         B = a - k * TAO
@@ -173,11 +168,7 @@ def glicko2_update(
     return ret
 
 
-def glicko2_configure(
-    tao: float,
-    min_rd: float,
-    max_rd: float,
-) -> None:
+def glicko2_configure(tao: float, min_rd: float, max_rd: float,) -> None:
     global TAO
     global MIN_RD
     global MAX_RD

@@ -1,6 +1,5 @@
 from goratings.interfaces import GameAnalytics, GameRecord
 
-
 __all__ = ["Glicko2Analytics"]
 
 

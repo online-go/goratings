@@ -1,7 +1,6 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
 from goratings.interfaces import Storage
-from goratings.math.glicko2 import Glicko2Entry
 
 __all__ = ["InMemoryStorage"]
 
@@ -16,7 +15,6 @@ class InMemoryStorage(Storage):
 
     def get(self, player_id: int) -> Any:
         if player_id not in self._data:
-            #self._data[player_id] = Glicko2Entry()
             self._data[player_id] = self.entry_type()
         return self._data[player_id]
 

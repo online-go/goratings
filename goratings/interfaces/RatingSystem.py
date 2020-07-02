@@ -1,6 +1,7 @@
 import abc
-from .GameRecord import GameRecord
+
 from .GameAnalytics import GameAnalytics
+from .GameRecord import GameRecord
 
 __all__ = ["RatingSystem"]
 

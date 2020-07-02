@@ -5,7 +5,6 @@ __all__ = [
     "EloEntry",
     "elo_configure",
     "elo_update",
-
     "Glicko2Entry",
     "glicko2_configure",
     "glicko2_update",
