@@ -2,6 +2,10 @@ This repository contains the (future) official rating and ranking system for
 online-go.com, as well as analysis code and data to develop that system and
 compare it to other reference systems.
 
+# Cloning
+
+To successfully clone the project, you need to have the git [large file storage](https://git-lfs.github.com/) extention installed. Otherwise the game database is missing.
+
 # Using and developing
 
 There are four main directories to be aware of.
