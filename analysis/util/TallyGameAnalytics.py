@@ -47,6 +47,8 @@ class TallyGameAnalytics:
         )
 
     def add_glicko2_analytics(self, result: Glicko2Analytics) -> None:
+        if result.skipped:
+            return
         if result.black_deviation > 160 or result.white_deviation > 160:
             self.games_ignored += 1
             return
