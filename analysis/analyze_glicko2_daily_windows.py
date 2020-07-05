@@ -46,10 +46,10 @@ class DailyWindows(RatingSystem):
             black_base,
             [
                 (
-                    opponent.copy(get_handicap_adjustment(opponent.rating, game.handicap)),
-                    game.winner_id == game.black_id
+                    opponent.copy((1 if past_game.black_id != game.black_id  else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap)),
+                    past_game.winner_id == past_game.black_id
                 )
-                for game, opponent in self._storage.get_matches_newer_or_equal_to(
+                for past_game, opponent in self._storage.get_matches_newer_or_equal_to(
                     game.black_id, window
                 )
             ]
@@ -59,10 +59,10 @@ class DailyWindows(RatingSystem):
             white_base,
             [
                 (
-                    opponent.copy(get_handicap_adjustment(opponent.rating, game.handicap)),
-                    game.winner_id == game.white_id
+                    opponent.copy((1 if past_game.black_id != game.white_id else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap)),
+                    past_game.winner_id == past_game.white_id
                 )
-                for game, opponent in self._storage.get_matches_newer_or_equal_to(
+                for past_game, opponent in self._storage.get_matches_newer_or_equal_to(
                     game.white_id, window
                 )
             ]
