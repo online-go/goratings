@@ -10,6 +10,9 @@ from goratings.interfaces import Storage
 from .Glicko2Analytics import Glicko2Analytics
 from .RatingMath import rating_to_rank
 
+from sys import argv
+from pathlib import Path
+
 __all__ = ["TallyGameAnalytics"]
 
 
@@ -30,8 +33,11 @@ class TallyGameAnalytics:
     games_ignored: int
     black_wins: ResultStorageType
     predictions: ResultStorageType
+    predicted_outcome: ResultStorageType
     count: ResultStorageType
+    count_black_wins: ResultStorageType
     storage: Storage
+    unexpected_rank_changes: ResultStorageType
 
     def __init__(self, storage: Storage) -> None:
         self.games_ignored = 0
@@ -42,9 +48,18 @@ class TallyGameAnalytics:
         self.predictions = defaultdict(
             lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0)))
         )
+        self.predicted_outcome = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0))))
         self.count = defaultdict(
             lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
         )
+        self.count_black_wins = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
+        )
+        self.unexpected_rank_changes = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
+        )
+
 
     def add_glicko2_analytics(self, result: Glicko2Analytics) -> None:
         if result.skipped:
@@ -58,6 +73,7 @@ class TallyGameAnalytics:
             return
 
         black_won = result.game.winner_id == result.game.black_id
+        white_won = result.game.winner_id == result.game.white_id
 
         for size in [ALL, result.game.size]:
             for speed in [ALL, result.game.speed]:
@@ -70,16 +86,39 @@ class TallyGameAnalytics:
                         if isinstance(rank, int) or isinstance(
                             rank, str
                         ):  # this is just to make mypy happy
-                            if black_won:
-                                self.black_wins[size][speed][rank][handicap] += 1
-                            self.predictions[size][speed][rank][
-                                handicap
-                            ] += result.expected_win_rate
+                            if abs(result.black_rank + result.game.handicap - result.white_rank) <= 1:
+                                self.count_black_wins[size][speed][rank][handicap] += 1
+                                if black_won:
+                                    self.black_wins[size][speed][rank][handicap] += 1
+                            self.predictions[size][speed][rank][handicap] += result.expected_win_rate
+                            self.predicted_outcome[size][speed][rank][handicap] += black_won if result.expected_win_rate > 0.5 else (not black_won if result.expected_win_rate < 0.5 else 0.5)
                             self.count[size][speed][rank][handicap] += 1
+                            if black_won and not white_won and (result.black_updated_rating - result.black_rating < 0 or
+                                                                result.white_updated_rating - result.white_rating > 0):
+                                # black won the game but her rating droped
+                                self.unexpected_rank_changes[size][speed][rank][handicap] += 1
+                            if white_won and not black_won and (result.white_updated_rating - result.white_rating < 0 or
+                                                                result.black_updated_rating - result.black_rating > 0):
+                                # black won the game but her rating droped
+                                self.unexpected_rank_changes[size][speed][rank][handicap] += 1
 
     def print(self) -> None:
         self.print_handicap_performance()
+#        self.print_prediction_performance()
         self.print_inspected_players()
+        self.print_compact_stats()
+
+    def print_compact_stats(self) -> None:
+        print("")
+        print("")
+        print("| Algorithm name | Black wins h0 | h1 | h2 | Stronger wins | rating changed in the wrong direction |")
+        print("|:---------------|--------------:|---:|---:|--------------:|---------------------------------------:")
+        print("| {name:>s} | {h0:>5.1%} | {h1:>5.1%} | {h2:>5.1%} | {precision:>5.1%} | {unexp_change:>8.4%} |".format(name=Path(argv[0]).name,
+                                                                                                                     h0=self.black_wins[19][ALL][ALL][0] / max(1, self.count_black_wins[19][ALL][ALL][0]),
+                                                                                                                     h1=self.black_wins[19][ALL][ALL][1] / max(1, self.count_black_wins[19][ALL][ALL][1]),
+                                                                                                                     h2=self.black_wins[19][ALL][ALL][2] / max(1, self.count_black_wins[19][ALL][ALL][2]),
+                                                                                                                     precision=self.predicted_outcome[19][ALL][ALL][0]/self.count[19][ALL][ALL][0],
+                                                                                                                     unexp_change=self.unexpected_rank_changes[ALL][ALL][ALL][ALL]/self.count[ALL][ALL][ALL][ALL]/2))
 
     def print_inspected_players(self) -> None:
         config = configparser.ConfigParser()
@@ -99,9 +138,14 @@ class TallyGameAnalytics:
                 for name in config["ogs"]:
                     id = int(config["ogs"][name])
                     entry = self.storage.get(id)
+                    last_game = self.storage.get_first_timestamp_older_than(id, 999999999999)
+                    if last_game is None:
+                        rh = []
+                    else:
+                        rh = self.storage.get_ratings_newer_or_equal_to(id, last_game - 86400 * 28)
                     print(
-                        "%20s    %3s     %s"
-                        % (name, num2rank(rating_to_rank(entry.rating)), str(entry))
+                        "%20s    %3s     %s     %4.0f  %4.0f     %3.0f  %3.0f"
+                        % (name, num2rank(rating_to_rank(entry.rating)), str(entry), min(rh, key=lambda x: x.rating, default=entry).rating, max(rh, key=lambda x: x.rating, default=entry).rating, min(rh, key=lambda x: x.deviation, default=entry).deviation, max(rh, key=lambda x: x.deviation, default=entry).deviation)
                     )
 
     def print_handicap_performance(self) -> None:
@@ -123,7 +167,7 @@ class TallyGameAnalytics:
                 rankband = "%d+5" % rank
                 sys.stdout.write("%3s-%3s  " % (num2rank(rank), num2rank(rank + 4)))
                 for handicap in range(10):
-                    ct = self.count[size][ALL][rankband][handicap]
+                    ct = self.count_black_wins[size][ALL][rankband][handicap]
                     sys.stdout.write(
                         "%5.1f%%   "
                         % (

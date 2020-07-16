@@ -47,6 +47,21 @@ class InMemoryStorage(Storage):
                 return e[1]
         return self.entry_type()
 
+    def get_ratings_newer_or_equal_to(self, player_id: int, timestamp: int) -> Any:
+        ct = 0
+        for e in reversed(self._rating_history[player_id]):
+            if e[0] >= timestamp:
+                ct += 1
+            else:
+                break
+        return [e[1] for e in self._rating_history[player_id][-ct:]]
+
+    def get_first_timestamp_older_than(self, player_id: int, timestamp: int) -> Any:
+        for e in reversed(self._rating_history[player_id]):
+            if e[0] < timestamp:
+                return e[0]
+        return None
+
     def get_matches_newer_or_equal_to(self, player_id: int, timestamp: int) -> Any:
         ct = 0
         for e in reversed(self._match_history[player_id]):
