@@ -9,6 +9,7 @@ from goratings.interfaces import Storage
 
 from .Glicko2Analytics import Glicko2Analytics
 from .RatingMath import rating_to_rank
+from .Config import config
 
 __all__ = ["TallyGameAnalytics"]
 
@@ -82,8 +83,8 @@ class TallyGameAnalytics:
         self.print_inspected_players()
 
     def print_inspected_players(self) -> None:
-        config = configparser.ConfigParser()
-        config.optionxform = lambda s: s  # type: ignore
+        ini = configparser.ConfigParser()
+        ini.optionxform = lambda s: s  # type: ignore
         fname = "players_to_inspect.ini"
         if os.path.exists(fname):
             pass
@@ -92,12 +93,21 @@ class TallyGameAnalytics:
         if os.path.exists("../" + fname):
             fname = "../" + fname
         if os.path.exists(fname):
-            config.read(fname)
-            if "ogs" in config:
+            ini.read(fname)
+
+            sections = []
+
+            if config.args.use_all_data or config.args.use_ogs_data or (not config.args.use_egf_data) and "ogs" in ini:
+                sections.append("ogs")
+
+            if config.args.use_all_data or config.args.use_egf_data and "egf" in ini:
+                sections.append("egf")
+
+            for section in sections:
                 print("")
-                print("Inspected users from %s" % fname)
-                for name in config["ogs"]:
-                    id = int(config["ogs"][name])
+                print("Inspected %s users from %s" % (section, fname))
+                for name in ini[section]:
+                    id = int(ini[section][name])
                     entry = self.storage.get(id)
                     print(
                         "%20s    %3s     %s"

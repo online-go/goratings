@@ -9,15 +9,15 @@ from goratings.interfaces import GameRecord
 from .CLI import cli
 from .Config import config
 
-__all__ = ["OGSGameData"]
+__all__ = ["EGFGameData"]
 
 
-class OGSGameData:
+class EGFGameData:
     _conn: sqlite3.Connection
     quiet: bool
 
     def __init__(
-        self, sqlite_filename: str = "data/ogs-data.db", quiet: bool = False
+        self, sqlite_filename: str = "data/egf-data.db", quiet: bool = False
     ) -> None:
         if not os.path.exists(sqlite_filename) and os.path.exists(
             "../" + sqlite_filename
@@ -48,15 +48,17 @@ class OGSGameData:
             """
                 SELECT
                     id,
-                    size,
+                    19,
                     handicap,
-                    komi,
+                    0,
                     black_id,
                     white_id,
-                    time_per_move,
-                    timeout,
+                    60,
+                    FALSE,
                     winner_id,
-                    ended
+                    ended,
+                    black_manual_rank_update,
+                    white_manual_rank_update
                 FROM
                     game_records ORDER BY ended
                 LIMIT
@@ -86,6 +88,8 @@ class OGSGameData:
                 row[7],
                 row[8],
                 row[9],
+                row[10],
+                row[11],
             )
 
         if not self.quiet:

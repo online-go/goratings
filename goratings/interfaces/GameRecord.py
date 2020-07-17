@@ -1,3 +1,6 @@
+from typing import Optional
+
+
 __all__ = ["GameRecord"]
 
 
@@ -12,6 +15,8 @@ class GameRecord:
     timeout: bool
     winner_id: int
     ended: int  # timestamp, seconds since epoch
+    black_manual_rank_update: Optional[int] #
+    white_manual_rank_update: Optional[int] #
 
     def __init__(
         self,
@@ -25,6 +30,8 @@ class GameRecord:
         timeout: bool,
         winner_id: int,
         ended: int,
+        black_manual_rank_update: Optional[int] = None,
+        white_manual_rank_update: Optional[int] = None,
     ):
         self.game_id = game_id
         self.size = size
@@ -36,6 +43,8 @@ class GameRecord:
         self.timeout = timeout
         self.winner_id = winner_id
         self.ended = ended
+        self.black_manual_rank_update = black_manual_rank_update
+        self.white_manual_rank_update = white_manual_rank_update
 
     def __str__(self) -> str:
         return "%d\t%d %d vs. %d" % (

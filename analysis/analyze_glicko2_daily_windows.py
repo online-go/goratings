@@ -3,12 +3,13 @@
 from analysis.util import (
     Glicko2Analytics,
     InMemoryStorage,
-    OGSGameData,
+    GameData,
     TallyGameAnalytics,
     cli,
     config,
     get_handicap_adjustment,
     rating_to_rank,
+    rank_to_rating,
 )
 from goratings.interfaces import GameRecord, RatingSystem, Storage
 from goratings.math.glicko2 import Glicko2Entry, glicko2_update
@@ -21,6 +22,12 @@ class DailyWindows(RatingSystem):
         self._storage = storage
 
     def process_game(self, game: GameRecord) -> Glicko2Analytics:
+        if game.black_manual_rank_update is not None:
+            self._storage.set(game.black_id, Glicko2Entry(rank_to_rating(game.black_manual_rank_update)))
+
+        if game.white_manual_rank_update is not None:
+            self._storage.set(game.white_id, Glicko2Entry(rank_to_rating(game.white_manual_rank_update)))
+
         ## Only count the first timeout in correspondence games as a ranked loss
         if game.timeout and game.speed == 3: # correspondence timeout
             player_that_timed_out = game.black_id if game.black_id != game.winner_id else game.white_id
@@ -91,12 +98,12 @@ class DailyWindows(RatingSystem):
 
 # Run
 config(cli.parse_args())
-ogs_game_data = OGSGameData()
+game_data = GameData()
 storage = InMemoryStorage(Glicko2Entry)
 engine = DailyWindows(storage)
 tally = TallyGameAnalytics(storage)
 
-for game in ogs_game_data:
+for game in game_data:
     analytics = engine.process_game(game)
     tally.add_glicko2_analytics(analytics)
 
