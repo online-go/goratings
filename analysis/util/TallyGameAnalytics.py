@@ -186,6 +186,8 @@ class TallyGameAnalytics:
                 sys.stdout.write("\n")
 
     def print_handicap_prediction(self) -> None:
+        print("")
+        print("How often does the player with the higher rating win.")
         for size in [9, 13, 19, ALL]:
             print("")
             if size == ALL:
