@@ -93,13 +93,17 @@ class TallyGameAnalytics:
                             self.predictions[size][speed][rank][handicap] += result.expected_win_rate
                             self.predicted_outcome[size][speed][rank][handicap] += black_won if result.expected_win_rate > 0.5 else (not black_won if result.expected_win_rate < 0.5 else 0.5)
                             self.count[size][speed][rank][handicap] += 1
-                            if black_won and not white_won and (result.black_updated_rating - result.black_rating < 0 or
-                                                                result.white_updated_rating - result.white_rating > 0):
-                                # black won the game but her rating droped
+                            if black_won and not white_won and result.black_updated_rating - result.black_rating < 0:
+                                # black won but her rating droped
                                 self.unexpected_rank_changes[size][speed][rank][handicap] += 1
-                            if white_won and not black_won and (result.white_updated_rating - result.white_rating < 0 or
-                                                                result.black_updated_rating - result.black_rating > 0):
-                                # black won the game but her rating droped
+                            if black_won and not white_won and result.white_updated_rating - result.white_rating > 0:
+                                # white lost but her rating increased
+                                self.unexpected_rank_changes[size][speed][rank][handicap] += 1
+                            if white_won and not black_won and result.white_updated_rating - result.white_rating < 0:
+                                # white won but her rating dropped
+                                self.unexpected_rank_changes[size][speed][rank][handicap] += 1
+                            if white_won and not black_won and result.black_updated_rating - result.black_rating > 0:
+                                # black lost but her rating increased
                                 self.unexpected_rank_changes[size][speed][rank][handicap] += 1
 
     def print(self) -> None:
