@@ -104,7 +104,6 @@ class TallyGameAnalytics:
 
     def print(self) -> None:
         self.print_handicap_performance()
-#        self.print_prediction_performance()
         self.print_inspected_players()
         self.print_compact_stats()
 
@@ -152,10 +151,10 @@ class TallyGameAnalytics:
         for size in [9, 13, 19, ALL]:
             print("")
             if size == ALL:
-                print("Overall:   %d games" % self.count[size][ALL][ALL][ALL])
+                print("Overall:   %d games" % self.count_black_wins[size][ALL][ALL][ALL])
             else:
                 print(
-                    "%dx%d:   %d games" % (size, size, self.count[size][ALL][ALL][ALL])
+                    "%dx%d:   %d games" % (size, size, self.count_black_wins[size][ALL][ALL][ALL])
                 )
 
             sys.stdout.write("         ")
