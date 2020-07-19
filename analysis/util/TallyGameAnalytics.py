@@ -104,19 +104,20 @@ class TallyGameAnalytics:
 
     def print(self) -> None:
         self.print_handicap_performance()
+        self.print_handicap_prediction()
         self.print_inspected_players()
         self.print_compact_stats()
 
     def print_compact_stats(self) -> None:
         print("")
         print("")
-        print("| Algorithm name | Black wins h0 | h1 | h2 | Stronger wins | rating changed in the wrong direction |")
+        print("| Algorithm name | Stronger wins | h0 | h1 | h2 | rating changed in the wrong direction |")
         print("|:---------------|--------------:|---:|---:|--------------:|---------------------------------------:")
-        print("| {name:>s} | {h0:>5.1%} | {h1:>5.1%} | {h2:>5.1%} | {precision:>5.1%} | {unexp_change:>8.4%} |".format(name=Path(argv[0]).name,
-                                                                                                                     h0=self.black_wins[19][ALL][ALL][0] / max(1, self.count_black_wins[19][ALL][ALL][0]),
-                                                                                                                     h1=self.black_wins[19][ALL][ALL][1] / max(1, self.count_black_wins[19][ALL][ALL][1]),
-                                                                                                                     h2=self.black_wins[19][ALL][ALL][2] / max(1, self.count_black_wins[19][ALL][ALL][2]),
-                                                                                                                     precision=self.predicted_outcome[19][ALL][ALL][0]/self.count[19][ALL][ALL][0],
+        print("| {name:>s} | {prediction:>5.1%} | {prediction_h0:>5.1%} | {prediction_h1:>5.1%} | {prediction_h2:>5.1%} | {unexp_change:>8.4%} |".format(name=Path(argv[0]).name,
+                                                                                                                     prediction=self.predicted_outcome[19][ALL][ALL][ALL]/self.count[19][ALL][ALL][ALL],
+                                                                                                                     prediction_h0=self.predicted_outcome[19][ALL][ALL][0]/self.count[19][ALL][ALL][0],
+                                                                                                                     prediction_h1=self.predicted_outcome[19][ALL][ALL][1]/self.count[19][ALL][ALL][1],
+                                                                                                                     prediction_h2=self.predicted_outcome[19][ALL][ALL][2]/self.count[19][ALL][ALL][2],
                                                                                                                      unexp_change=self.unexpected_rank_changes[ALL][ALL][ALL][ALL]/self.count[ALL][ALL][ALL][ALL]/2))
 
     def print_inspected_players(self) -> None:
@@ -172,6 +173,39 @@ class TallyGameAnalytics:
                         % (
                             (
                                 self.black_wins[size][ALL][rankband][handicap] / ct
+                                if ct
+                                else 0
+                            )
+                            * 100.0
+                        )
+                    )
+                sys.stdout.write("\n")
+
+    def print_handicap_prediction(self) -> None:
+        for size in [9, 13, 19, ALL]:
+            print("")
+            if size == ALL:
+                print("Overall:   %d games" % self.count[size][ALL][ALL][ALL])
+            else:
+                print(
+                    "%dx%d:   %d games" % (size, size, self.count[size][ALL][ALL][ALL])
+                )
+
+            sys.stdout.write("         ")
+            for handicap in range(10):
+                sys.stdout.write("  hc %d   " % handicap)
+            sys.stdout.write("\n")
+
+            for rank in range(0, 35, 5):
+                rankband = "%d+5" % rank
+                sys.stdout.write("%3s-%3s  " % (num2rank(rank), num2rank(rank + 4)))
+                for handicap in range(10):
+                    ct = self.count[size][ALL][rankband][handicap]
+                    sys.stdout.write(
+                        "%5.1f%%   "
+                        % (
+                            (
+                                self.predicted_outcome[size][ALL][rankband][handicap] / ct
                                 if ct
                                 else 0
                             )
