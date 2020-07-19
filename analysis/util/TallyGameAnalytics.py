@@ -94,7 +94,7 @@ class TallyGameAnalytics:
                             self.predicted_outcome[size][speed][rank][handicap] += black_won if result.expected_win_rate > 0.5 else (not black_won if result.expected_win_rate < 0.5 else 0.5)
                             self.count[size][speed][rank][handicap] += 1
                             if black_won and not white_won and result.black_updated_rating - result.black_rating < 0:
-                                # black won but her rating droped
+                                # black won but her rating dropped
                                 self.unexpected_rank_changes[size][speed][rank][handicap] += 1
                             if black_won and not white_won and result.white_updated_rating - result.white_rating > 0:
                                 # white lost but her rating increased
@@ -186,6 +186,7 @@ class TallyGameAnalytics:
                 sys.stdout.write("\n")
 
     def print_handicap_prediction(self) -> None:
+        print("")
         print("")
         print("How often does the player with the higher rating win.")
         for size in [9, 13, 19, ALL]:
