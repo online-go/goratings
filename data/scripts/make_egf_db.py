@@ -134,7 +134,7 @@ for row in rows:
     winner = row[10]
 
     if winner == "b" or winner == "w":
-        winner = 1 if p1_color == "b" else 2
+        winner = 1 if p1_color == winner else 2
 
     elif winner == "1" or winner == "2":
         winner = int(winner)
@@ -165,6 +165,7 @@ for row in rows:
         assert(False)
 
     winner_id = p1_id if winner == 1 else p2_id
+
 
     c.execute(
         """
