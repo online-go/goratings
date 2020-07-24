@@ -7,9 +7,10 @@ from typing import DefaultDict, Union
 
 from goratings.interfaces import Storage
 
+from .Config import config
+from .GameData import datasets_used
 from .Glicko2Analytics import Glicko2Analytics
 from .RatingMath import rating_to_rank
-from .Config import config
 
 __all__ = ["TallyGameAnalytics"]
 
@@ -97,10 +98,12 @@ class TallyGameAnalytics:
 
             sections = []
 
-            if config.args.use_all_data or config.args.use_ogs_data or (not config.args.use_egf_data) and "ogs" in ini:
+            datasets = datasets_used()
+
+            if datasets['ogs']:
                 sections.append("ogs")
 
-            if config.args.use_all_data or config.args.use_egf_data and "egf" in ini:
+            if datasets["egf"]:
                 sections.append("egf")
 
             for section in sections:

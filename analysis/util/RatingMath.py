@@ -2,7 +2,7 @@ import argparse
 from math import exp, log
 from typing import Callable
 
-from .CLI import cli
+from .CLI import cli, defaults
 
 __all__ = [
     "rank_to_rating",
@@ -15,9 +15,9 @@ cli.add_argument(
     "--ranks",
     type=str,
     dest="ranks",
-    choices=("log", "linear", "auto"),
+    choices=("log", "linear", "gor", "auto"),
     default="auto",
-    help="Use logarithmic or linear ranking",
+    help="Use logarithmic, linear, or GoR ranking",
 )
 
 logarithmic = cli.add_argument_group(
@@ -61,15 +61,23 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     b: float = args.b
 
     if system == "auto":
-        system = "log"
+        system = defaults["ranking"]
 
     if system == "linear":
-
         def __rank_to_rating(rank: float) -> float:
             return (rank - b) * m
 
         def __rating_to_rank(rating: float) -> float:
             return (rating / m) + b
+
+        _rank_to_rating = __rank_to_rating
+        _rating_to_rank = __rating_to_rank
+    elif system == "gor":
+        def __rank_to_rating(rank: float) -> float:
+            return (rank - 9) * 100
+
+        def __rating_to_rank(rating: float) -> float:
+            return (rating / 100.0)  + 9
 
         _rank_to_rating = __rank_to_rating
         _rating_to_rank = __rating_to_rank

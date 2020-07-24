@@ -1,15 +1,16 @@
 import sys
 
+from collections import namedtuple
 from typing import Iterator
 from goratings.interfaces import GameRecord
 
-from .CLI import cli
+from .CLI import cli, defaults
 from .Config import config
 from .EGFGameData import EGFGameData
 from .OGSGameData import OGSGameData
 
 
-__all__ = ["GameData"]
+__all__ = ["GameData", "datasets_used"]
 
 cli.add_argument(
     "--egf",
@@ -57,7 +58,9 @@ class GameData:
         self.egfdata = EGFGameData(quiet = quiet)
 
     def __iter__(self) -> Iterator[GameRecord]:
-        if config.args.use_all_data or config.args.use_ogs_data or (not config.args.use_egf_data):
+        data_to_use = datasets_used()
+
+        if data_to_use['ogs']:
             if not self.quiet:
                 sys.stdout.write(
                     f"\nProcessing OGS data\n"
@@ -65,11 +68,23 @@ class GameData:
             for entry in self.ogsdata:
                 yield entry
 
-        if config.args.use_all_data or config.args.use_egf_data:
+        if data_to_use['egf']:
             if not self.quiet:
                 sys.stdout.write(
                     f"\nProcessing EGF data\n"
                 )
             for entry in self.egfdata:
                 yield entry
+
+
+def datasets_used():
+    ret = {
+        'egf': config.args.use_all_data or config.args.use_egf_data,
+        'ogs': config.args.use_all_data or config.args.use_ogs_data,
+        #'aga': config.args.use_all_data or config.args.use_aga_data,
+    }
+    if not ret['egf'] and not ret['ogs']: # and not ret['aga']:
+        ret[defaults['data']] = True
+
+    return ret
 
