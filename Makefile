@@ -24,4 +24,10 @@ format black: .venv
 	.venv/bin/tox -e linters --notest
 	.tox/linters/bin/black --target-version py38 goratings unit_tests analysis/util
 
+shippable-test:
+	tox -e py3
+
+shippable-lint:
+	tox -e linters
+
 .PHONY: lint test format
