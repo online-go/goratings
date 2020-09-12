@@ -1,0 +1,15 @@
+language: language
+
+python:
+  - 3.8
+
+build:
+  ci:
+    - make venv
+    - make test
+    - make lint
+
+  cache: true
+
+  cache_dir_list:
+    - $SHIPPABLE_BUILD_DIR/.venv
