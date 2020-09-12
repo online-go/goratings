@@ -5,7 +5,8 @@ python:
 
 build:
   pre_ci_boot:
-    image_name: u16pytall
+    image_name: drydockaarch64/u16all
+    image_tag: v7.2.4
 
   ci:
     - pip install -r requirements.txt
