@@ -1,5 +1,8 @@
 language: python
 
+python:
+  - 3.7
+
 build:
   pre_ci_boot:
     image_name: drydock/u16pytall
