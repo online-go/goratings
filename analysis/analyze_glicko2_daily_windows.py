@@ -54,7 +54,7 @@ class DailyWindows(RatingSystem):
             [
                 (
                     opponent.copy((1 if past_game.black_id != game.black_id  else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap)),
-                    past_game.winner_id == past_game.black_id
+                    past_game.winner_id == game.black_id
                 )
                 for past_game, opponent in self._storage.get_matches_newer_or_equal_to(
                     game.black_id, window
@@ -67,7 +67,7 @@ class DailyWindows(RatingSystem):
             [
                 (
                     opponent.copy((1 if past_game.black_id != game.white_id else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap)),
-                    past_game.winner_id == past_game.white_id
+                    past_game.winner_id == game.white_id
                 )
                 for past_game, opponent in self._storage.get_matches_newer_or_equal_to(
                     game.white_id, window
@@ -97,7 +97,7 @@ class DailyWindows(RatingSystem):
 
 
 # Run
-config(cli.parse_args())
+config(cli.parse_args(), "glicko2-daily-windows")
 game_data = GameData()
 storage = InMemoryStorage(Glicko2Entry)
 engine = DailyWindows(storage)

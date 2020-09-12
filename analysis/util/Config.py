@@ -16,10 +16,11 @@ class Config:
     def __init__(self) -> None:
         pass
 
-    def __call__(self, args: argparse.Namespace) -> None:
+    def __call__(self, args: argparse.Namespace, name: str) -> None:
         self.args = args
         configure_rating_to_rank(args)
         configure_glicko2(args)
+        self.name = name
 
 
 glicko2_config = cli.add_argument_group("glicko2 configuration")

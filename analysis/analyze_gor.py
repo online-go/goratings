@@ -28,9 +28,11 @@ class OneGameAtATime(RatingSystem):
 
     def process_game(self, game: GameRecord) -> GorAnalytics:
         if game.black_manual_rank_update is not None:
+            self._storage.clear_set_count(game.black_id)
             self._storage.set(game.black_id, GorEntry(rank_to_rating(game.black_manual_rank_update)))
 
         if game.white_manual_rank_update is not None:
+            self._storage.clear_set_count(game.white_id)
             self._storage.set(game.white_id, GorEntry(rank_to_rating(game.white_manual_rank_update)))
 
         ## Only count the first timeout in correspondence games as a ranked loss
@@ -50,25 +52,28 @@ class OneGameAtATime(RatingSystem):
 
 
         updated_black = gor_update(
-            black.withHandicap(get_handicap_adjustment(black.rating, game.handicap)),
-            #white.withHandicap(-get_handicap_adjustment(white.rating, game.handicap)),
+            black.with_handicap(get_handicap_adjustment(black.rating, game.handicap)),
+            #white.with_handicap(-get_handicap_adjustment(white.rating, game.handicap)),
             white,
             1 if game.winner_id == game.black_id else 0,
         )
 
         updated_white = gor_update(
             white,
-            black.withHandicap(get_handicap_adjustment(black.rating, game.handicap)),
+            black.with_handicap(get_handicap_adjustment(black.rating, game.handicap)),
             1 if game.winner_id == game.white_id else 0,
         )
 
         self._storage.set(game.black_id, updated_black)
         self._storage.set(game.white_id, updated_white)
 
+        black_games_played = self._storage.get_set_count(game.black_id)
+        white_games_played = self._storage.get_set_count(game.white_id)
+
         return GorAnalytics(
             skipped=False,
             game=game,
-            expected_win_rate=black.withHandicap(get_handicap_adjustment(white.rating, game.handicap)).expected_win_probability(
+            expected_win_rate=black.with_handicap(get_handicap_adjustment(white.rating, game.handicap)).expected_win_probability(
                 #white.copy(-get_handicap_adjustment(white.rating, game.handicap))
                 white
             ),
@@ -76,12 +81,14 @@ class OneGameAtATime(RatingSystem):
             white_rating=white.rating,
             black_rank=rating_to_rank(black.rating),
             white_rank=rating_to_rank(white.rating),
+            black_games_played = black_games_played,
+            white_games_played = white_games_played,
         )
 
 
 
 # Run
-config(cli.parse_args())
+config(cli.parse_args(), "gor")
 game_data = GameData()
 storage = InMemoryStorage(GorEntry)
 engine = OneGameAtATime(storage)
@@ -90,6 +97,6 @@ tally = TallyGameAnalytics(storage)
 for game in game_data:
     analytics = engine.process_game(game)
     #analytics = engine.process_game(game)
-    #tally.add_glicko2_analytics(analytics)
+    tally.add_gor_analytics(analytics)
 
 tally.print()

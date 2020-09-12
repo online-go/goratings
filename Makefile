@@ -20,7 +20,7 @@ lint: .venv
 	@set -e && .venv/bin/tox -e linters
 
 format black: .venv
-	isort -y --multi-line=3 --trailing-comma --force-grid-wrap=0 --use-parentheses --line-width=88 
+	isort --multi-line=3 --trailing-comma --force-grid-wrap=0 --use-parentheses --line-width=88  unit_tests goratings analysis/util
 	.venv/bin/tox -e linters --notest
 	.tox/linters/bin/black --target-version py38 goratings unit_tests analysis/util
 

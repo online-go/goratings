@@ -8,6 +8,6 @@ cli = argparse.ArgumentParser(
 )
 
 defaults = {
-    'data': 'ogs',
-    'ranking': 'log',
+    "data": "ogs",
+    "ranking": "log",
 }

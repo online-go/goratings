@@ -83,7 +83,7 @@ class OneGameAtATime(RatingSystem):
 
 
 # Run
-config(cli.parse_args())
+config(cli.parse_args(), "glicko2-one-game-at-a-time")
 game_data = GameData()
 storage = InMemoryStorage(Glicko2Entry)
 engine = OneGameAtATime(storage)

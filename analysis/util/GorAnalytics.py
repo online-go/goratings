@@ -19,6 +19,8 @@ class GorAnalytics(GameAnalytics):
         white_rating: float = 0,
         black_rank: float = 0,
         white_rank: float = 0,
+        black_games_played: int = 0,
+        white_games_played: int = 0,
     ) -> None:
         super().__init__(skipped, game)
         self.expected_win_rate = expected_win_rate
@@ -26,6 +28,8 @@ class GorAnalytics(GameAnalytics):
         self.white_rating = white_rating
         self.black_rank = black_rank
         self.white_rank = white_rank
+        self.black_games_played = black_games_played
+        self.white_games_played = white_games_played
 
     def __str__(self) -> str:
         return "%.1f vs %.1f (hc: %d)  Expected win rate: %.1f" % (

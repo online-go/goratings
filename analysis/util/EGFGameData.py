@@ -6,7 +6,6 @@ from typing import Iterator
 
 from goratings.interfaces import GameRecord
 
-from .CLI import cli
 from .Config import config
 
 __all__ = ["EGFGameData"]

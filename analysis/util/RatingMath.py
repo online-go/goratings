@@ -1,6 +1,6 @@
 import argparse
 from math import exp, log
-from typing import Callable
+from typing import Callable, Dict, Union
 
 from .CLI import cli, defaults
 
@@ -8,6 +8,7 @@ __all__ = [
     "rank_to_rating",
     "rating_to_rank",
     "get_handicap_adjustment",
+    "rating_config",
 ]
 
 
@@ -36,6 +37,7 @@ linear.add_argument("-b", dest="b", type=float, default=9.0, help="b")
 
 _rank_to_rating: Callable[[float], float]
 _rating_to_rank: Callable[[float], float]
+rating_config: Dict[str, Union[str, float]] = {}
 
 
 def rank_to_rating(rank: float) -> float:
@@ -63,7 +65,10 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     if system == "auto":
         system = defaults["ranking"]
 
+    rating_config["system"] = system
+
     if system == "linear":
+
         def __rank_to_rating(rank: float) -> float:
             return (rank - b) * m
 
@@ -72,15 +77,20 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
 
         _rank_to_rating = __rank_to_rating
         _rating_to_rank = __rating_to_rank
+        rating_config["b"] = b
+        rating_config["m"] = m
     elif system == "gor":
+
         def __rank_to_rating(rank: float) -> float:
             return (rank - 9) * 100
 
         def __rating_to_rank(rating: float) -> float:
-            return (rating / 100.0)  + 9
+            return (rating / 100.0) + 9
 
         _rank_to_rating = __rank_to_rating
         _rating_to_rank = __rating_to_rank
+        rating_config["b"] = 9
+        rating_config["m"] = 100
     elif system == "log":
 
         def __rank_to_rating(rank: float) -> float:
@@ -91,6 +101,8 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
 
         _rank_to_rating = __rank_to_rating
         _rating_to_rank = __rating_to_rank
+        rating_config["c"] = c
+        rating_config["a"] = a
     else:
         raise NotImplementedError
 

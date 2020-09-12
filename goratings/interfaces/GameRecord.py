@@ -1,6 +1,5 @@
 from typing import Optional
 
-
 __all__ = ["GameRecord"]
 
 
@@ -15,8 +14,8 @@ class GameRecord:
     timeout: bool
     winner_id: int
     ended: int  # timestamp, seconds since epoch
-    black_manual_rank_update: Optional[int] #
-    white_manual_rank_update: Optional[int] #
+    black_manual_rank_update: Optional[int]  #
+    white_manual_rank_update: Optional[int]  #
 
     def __init__(
         self,
