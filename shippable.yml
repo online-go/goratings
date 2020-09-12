@@ -5,7 +5,7 @@ python:
 
 build:
   pre_ci_boot:
-    image_name: drydockaarch64/u16pytall
+    image_name: drydock/u16pytall
     image_tag: v7.2.4
 
   ci:
