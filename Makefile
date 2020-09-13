@@ -4,8 +4,7 @@ help:
 
 .venv venv:
 	virtualenv -ppython3 .venv
-	.venv/bin/pip install tox
-	.venv/bin/pip install python-dateutil
+	.venv/bin/pip install -r requirements.txt
 
 100k:
 	python -m goratings

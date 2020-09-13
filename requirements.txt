@@ -1,2 +1,4 @@
 tox
 python-dateutil
+scipy
+numpy
