@@ -1,0 +1,26 @@
+This package, Bayrate, includes the ratings algorithm used by the American Go Association, along with various support programs and test data.  For details about the algorithm itself, visit http://www.usgo.org/ratings.  This package is not meant to be an exhaustive system that is fully functional for the purposes of rating local club events.  Rather, it is meant to serve as a base for interested developers.
+
+Bayrate is copyrighted by Philip Waldron and may distributed under the terms of the GNU General Public License, either version 3 or (at your option) any later version.  See the file COPYING for the full text of the license.
+
+The package relies on three libraries:
+	- the GNU Scientific Library (http://www.gnu.org/software/gsl/)
+	- the Boost Library (http://www.boost.org/)
+	- the MySQL++ Library (http://tangentsoft.net/mysql++/)
+	
+It is important to use a recent version of the GNU Scientific Library (GSL).  Some Linux distributions ship older versions that do not have all the necessary functions.  If you receive compiler errors about missing functions, check that your GSL package is up to date.
+
+Bayrate uses MySQL for database functionality.  In principle this could be replaced or removed entirely with moderate effort.  Bayrate does not currently include a program to input data into the database.  It is assumed that you have your own method of inputing game information.
+
+A makefile is included, and additional configuration should not be necessary; Bayrate compiles without warnings under gcc 4.3.2.  Once the package is compiled, three binary commands will be available:
+
+(i) bayrate -- the main ratings system, which determines the earliest game that needs to be rated (or rerated) and calculates all ratings from that point forward.  Ratings are commited to the database if the program is run with the --commit flag. 
+
+(ii) singlerate -- a program to generate the ratings from a single tournament.  No ratings are inserted into the database.  This program is provided for illustrative purposes, and can serve as a base for modification.
+
+(iii) check -- a program that determines the earliest game that needs to be rated (or rerated) and examines all subsequent games for statistically improbable results that often indicate data entry errors.
+
+A standard ratings update will usually run the "check" command to make sure all data looks reasonable, followed by an optional "bayrate" to run a ratings test run.  A ratings run is completed with "bayrate --commit" to calculate the final ratings and commit them to the database.  
+
+The games table in the database has three flags of interest: rated, online and exclude.  The rated flag indicates that a particular game has been rated.  The online flag indicates that a particular game was played online; the AGA does not currently rate online games but may do so in the future.  The exclude flag indicates a game that should be excluded from the ratings calculation.  This may be done for several reasons--game data may be suspect or may involve an extremely high handicap or komi for which there is no data to create a statistical model.  All flags operate on a game-by-game basis, so the system will rate the remainder of a tournament from which a game has been excluded. 
+
+The file testdata.sql includes fictitious game information to run tests on.  The games are derived from actual AGA tournament data, with ID numbers, names, dates and tournament codes scrambled.
