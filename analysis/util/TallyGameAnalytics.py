@@ -167,7 +167,7 @@ class TallyGameAnalytics:
                 prediction=prediction,
                 prediction_h0=prediction_h0,
                 prediction_h1=prediction_h1,
-                prediction_h2=prediction_h1,
+                prediction_h2=prediction_h2,
                 unexp_change=unexp_change,
             )
         )
@@ -214,8 +214,12 @@ class TallyGameAnalytics:
                             str(entry),
                             min(rh, key=lambda x: x.rating, default=entry).rating,
                             max(rh, key=lambda x: x.rating, default=entry).rating,
-                            min(rh, key=lambda x: x.deviation, default=entry).deviation if (hasattr(entry, 'deviation')) else 0,
-                            max(rh, key=lambda x: x.deviation, default=entry).deviation if (hasattr(entry, 'deviation')) else 0,
+                            min(rh, key=lambda x: x.deviation, default=entry).deviation
+                            if (hasattr(entry, "deviation"))
+                            else 0,
+                            max(rh, key=lambda x: x.deviation, default=entry).deviation
+                            if (hasattr(entry, "deviation"))
+                            else 0,
                         )
                     )
 
