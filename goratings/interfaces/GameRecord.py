@@ -46,12 +46,7 @@ class GameRecord:
         self.white_manual_rank_update = white_manual_rank_update
 
     def __str__(self) -> str:
-        return "%d\t%d %d vs. %d" % (
-            self.ended,
-            self.game_id,
-            self.black_id,
-            self.white_id,
-        )
+        return "%d\t%d %d vs. %d" % (self.ended, self.game_id, self.black_id, self.white_id,)
 
     @property
     def speed(self) -> int:

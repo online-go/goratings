@@ -27,9 +27,7 @@ class Glicko2Entry:
     mu: float
     phi: float
 
-    def __init__(
-        self, rating: float = 1500, deviation: float = 350, volatility: float = 0.06
-    ) -> None:
+    def __init__(self, rating: float = 1500, deviation: float = 350, volatility: float = 0.06) -> None:
         self.rating = rating
         self.deviation = deviation
         self.volatility = volatility
@@ -44,19 +42,11 @@ class Glicko2Entry:
             self.volatility * GLICKO2_SCALE,
         )
 
-    def copy(
-        self, rating_adjustment: float = 0.0, rd_adjustment: float = 0.0
-    ) -> "Glicko2Entry":
-        ret = Glicko2Entry(
-            self.rating + rating_adjustment,
-            self.deviation + rd_adjustment,
-            self.volatility,
-        )
+    def copy(self, rating_adjustment: float = 0.0, rd_adjustment: float = 0.0) -> "Glicko2Entry":
+        ret = Glicko2Entry(self.rating + rating_adjustment, self.deviation + rd_adjustment, self.volatility,)
         return ret
 
-    def expand_deviation_because_no_games_played(
-        self, n_periods: int = 1
-    ) -> "Glicko2Entry":
+    def expand_deviation_because_no_games_played(self, n_periods: int = 1) -> "Glicko2Entry":
         # Implementation as defined by:
         #   http://www.glicko.net/glicko/glicko2.pdf (note after step 8)
 
@@ -70,9 +60,7 @@ class Glicko2Entry:
 
         return self
 
-    def expected_win_probability(
-        self, white: "Glicko2Entry", handicap_adjustment: float
-    ) -> float:
+    def expected_win_probability(self, white: "Glicko2Entry", handicap_adjustment: float) -> float:
         # Implementation as defined by: http://www.glicko.net/glicko/glicko.pdf
         q = 0.0057565
 
@@ -93,9 +81,7 @@ class Glicko2Entry:
         return E
 
 
-def glicko2_update(
-    player: Glicko2Entry, matches: List[Tuple[Glicko2Entry, int]]
-) -> Glicko2Entry:
+def glicko2_update(player: Glicko2Entry, matches: List[Tuple[Glicko2Entry, int]]) -> Glicko2Entry:
     # Implementation as defined by: http://www.glicko.net/glicko/glicko2.pdf
     if len(matches) == 0:
         return player.copy()
@@ -121,11 +107,9 @@ def glicko2_update(
 
     def f(x: float) -> float:
         ex = exp(x)
-        return (
-            ex
-            * (delta ** 2 - player.phi ** 2 - v - ex)
-            / (2 * ((player.phi ** 2 + v + ex) ** 2))
-        ) - ((x - a) / (TAO ** 2))
+        return (ex * (delta ** 2 - player.phi ** 2 - v - ex) / (2 * ((player.phi ** 2 + v + ex) ** 2))) - (
+            (x - a) / (TAO ** 2)
+        )
 
     A = a
     if delta ** 2 > player.phi ** 2 + v:

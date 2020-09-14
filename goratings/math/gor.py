@@ -17,9 +17,7 @@ class GorEntry:
 
     def expected_win_probability(self, opponent: "GorEntry") -> float:
         D = (opponent.rating + opponent.handicap) - (self.rating + self.handicap)
-        a = compute_a(
-            min(self.rating + self.handicap, opponent.rating + opponent.handicap)
-        )  # self.rating)
+        a = compute_a(min(self.rating + self.handicap, opponent.rating + opponent.handicap))  # self.rating)
         # print("D = %f  a = %f" % (D, a))
         return 1 / (exp(D / a) + 1) - (EPSILON / 2)
 
@@ -86,8 +84,7 @@ def gor_update(player: GorEntry, opponent: GorEntry, outcome: float) -> GorEntry
 
 
 def gor_configure(
-    epsilon: float = 0.016,
-    rating_to_rank: Callable[[float], float] = lambda rating: rating / 100 + 9,
+    epsilon: float = 0.016, rating_to_rank: Callable[[float], float] = lambda rating: rating / 100 + 9,
 ) -> None:
     global EPSILON
     global RATING_TO_RANK

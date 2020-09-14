@@ -22,15 +22,12 @@ cli.add_argument(
 )
 
 logarithmic = cli.add_argument_group(
-    "logarithmic ranking variables",
-    "rating to ranks converted with `log(rating / a) * c`",
+    "logarithmic ranking variables", "rating to ranks converted with `log(rating / a) * c`",
 )
 logarithmic.add_argument("-a", dest="a", type=float, default=850.0, help="a")
 logarithmic.add_argument("-c", dest="c", type=float, default=31.25, help="c")
 
-linear = cli.add_argument_group(
-    "linear ranking variables", "rating to ranks converted with `rating / m + b`"
-)
+linear = cli.add_argument_group("linear ranking variables", "rating to ranks converted with `rating / m + b`")
 linear.add_argument("-m", dest="m", type=float, default=100.0, help="m")
 linear.add_argument("-b", dest="b", type=float, default=9.0, help="b")
 

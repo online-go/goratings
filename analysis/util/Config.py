@@ -25,15 +25,9 @@ class Config:
 
 glicko2_config = cli.add_argument_group("glicko2 configuration")
 glicko2_config.add_argument("--tao", dest="tao", type=float, default=0.5, help="tao")
+glicko2_config.add_argument("--min-rd", dest="min_rd", type=float, default=10.0, help="minimum rating deviation")
 glicko2_config.add_argument(
-    "--min-rd", dest="min_rd", type=float, default=10.0, help="minimum rating deviation"
-)
-glicko2_config.add_argument(
-    "--max-rd",
-    dest="max_rd",
-    type=float,
-    default=500.0,
-    help="maximum rating deviation",
+    "--max-rd", dest="max_rd", type=float, default=500.0, help="maximum rating deviation",
 )
 
 
