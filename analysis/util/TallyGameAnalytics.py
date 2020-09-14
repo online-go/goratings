@@ -214,8 +214,8 @@ class TallyGameAnalytics:
                             str(entry),
                             min(rh, key=lambda x: x.rating, default=entry).rating,
                             max(rh, key=lambda x: x.rating, default=entry).rating,
-                            min(rh, key=lambda x: x.deviation, default=entry).deviation,
-                            max(rh, key=lambda x: x.deviation, default=entry).deviation,
+                            min(rh, key=lambda x: x.deviation, default=entry).deviation if (hasattr(entry, 'deviation')) else 0,
+                            max(rh, key=lambda x: x.deviation, default=entry).deviation if (hasattr(entry, 'deviation')) else 0,
                         )
                     )
 
@@ -325,14 +325,15 @@ class TallyGameAnalytics:
         obj["name"] = self.get_descriptive_name()
         obj["timestamp"] = time()
         obj["black_wins"] = self.black_wins
+        obj["unexpected_rank_changes"] = self.unexpected_rank_changes
         obj["predictions"] = self.predictions
         obj["count"] = self.count
         obj["ignored"] = self.games_ignored
         obj["config"] = self.get_config()
 
-        rank_distribution: Any = defaultdict(lambda: 0)
+        rank_distribution = [0 for x in range(40)]
         for _id, player in self.storage.all_players().items():
-            rank = num2rank(rating_to_rank(player.rating))
+            rank = max(0, min(39, int(rating_to_rank(player.rating))))
             rank_distribution[rank] += 1
 
         obj["rank_distribution"] = rank_distribution

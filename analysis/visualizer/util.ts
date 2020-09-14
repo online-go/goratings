@@ -19,14 +19,26 @@ export function storageSet(key: string, value: any):any {
     return value;
 }
 
-export function rankString(r:number) {
+export function rankString(r:number, with_tenths?:boolean) {
+    let rs:string | number = r;
+
     if (r < 30) {
-        r = Math.ceil(30 - r);
-        return `${r}k`;
+        if (with_tenths) {
+            rs = (Math.ceil((30 - r) * 10) / 10).toFixed(1);
+        } else {
+            rs = Math.ceil(30 - r);
+        }
+
+        return `${rs}k`;
     }
 
-    r = Math.floor(r - 29);
-    return `${r}d`;
+    if (with_tenths) {
+        rs = (Math.floor((r - 29) * 10) / 10).toFixed(1);
+    } else {
+        rs = Math.floor(r - 29);
+    }
+
+    return `${rs}d`;
 }
 
 export function humanNumber(n:number) {

@@ -27,21 +27,30 @@ ordered_data.sort((a,b) => {
 });
 
 
-interface Dataset {
+interface DatasetByHandicap {
     info: ParsedDatasetName;
 
-    winrate: Array<{
+    winrate_by_handicap: Array<{
         label:string,
         winrate: number,
         samples: number,
     }>;
 
-    players: Array<{
+    avg_winrate_by_handicap: number;
+}
+
+interface DatasetByRank {
+    info: ParsedDatasetName;
+
+    winrate_by_rank: Array<{
         label:string,
-        count: number,
+        winrate: number,
+        unexpected_rank_changes: number,
+        predicted: number,
+        samples: number,
     }>;
 
-    avg_winrate: number;
+    avg_winrate_by_rank: number;
 }
 
 interface ParsedDatasetName {
@@ -50,6 +59,7 @@ interface ParsedDatasetName {
     num_samples: number;
     ignored: number;
     rating_system: string;
+    unexpected_rank_changes: number;
 
     log_args?: {
         a: number;
@@ -62,12 +72,11 @@ interface ParsedDatasetName {
 }
 
 
-function processDataSet(name: string, sizes:Array<number>, speeds:Array<number>, handicaps:Array<number>):Dataset {
-    let ret:Dataset = {
+function processDatasetByRank(name: string, sizes:Array<number>, speeds:Array<number>, handicaps:Array<number>, rank_band:number=1):DatasetByRank {
+    let ret:DatasetByRank = {
         info: parseDatasetName(name),
-        winrate: [],
-        players: [],
-        avg_winrate: 0,
+        winrate_by_rank: [],
+        avg_winrate_by_rank: 0,
     };
 
     if (sizes.length === 0) {
@@ -80,28 +89,52 @@ function processDataSet(name: string, sizes:Array<number>, speeds:Array<number>,
         handicaps = [ALL];
     }
 
+    let ranks:Array<number> = [];
+    for (let rank=0; rank < 40; rank += rank_band) {
+        ranks.push(rank);
+    }
 
-    for (let rank=0; rank < 40; ++rank) {
-        ret.winrate.push({
+
+    for (let rank of ranks) {
+        ret.winrate_by_rank[rank] ={
             label: rankString(rank),
             winrate: 0,
             samples: 0,
-        });
+            unexpected_rank_changes: 0,
+            predicted: 0,
+        };
     }
 
     let sample_total = 0;
-
-    console.log(sizes, speeds, handicaps);
+    let unexpected_total = 0;
 
     for (let size of sizes) {
         for (let speed of speeds) {
             for (let handicap of handicaps) {
-                for (let rank=0; rank < 40; ++rank) {
-                    if (data[name]?.black_wins[size] && data[name].black_wins[size][speed]) {
-                        if (rank in data[name].black_wins[size][speed]) {
-                            ret.winrate[rank].winrate += data[name].black_wins[size][speed][rank][handicap];
-                            ret.winrate[rank].samples += data[name].count[size][speed][rank][handicap];
-                            sample_total += data[name].count[size][speed][rank][handicap];
+                for (let rank of ranks) {
+                    for (let rank_band_i = 0; rank_band_i < rank_band; ++rank_band_i) {
+                        let rank_i = rank + rank_band_i;
+                        if (data[name]?.black_wins[size] && data[name].black_wins[size][speed]) {
+                            if (
+                                rank in data[name].black_wins[size][speed] &&
+                                rank_i in data[name].black_wins[size][speed]
+                            ) {
+                                ret.winrate_by_rank[rank].winrate += data[name].black_wins[size][speed][rank_i][handicap];
+                                ret.winrate_by_rank[rank].predicted += data[name].predictions[size][speed][rank_i][handicap];
+
+                                if (
+                                    data[name].unexpected_rank_changes &&
+                                    data[name].unexpected_rank_changes[size] &&
+                                    data[name].unexpected_rank_changes[size][speed] &&
+                                    data[name].unexpected_rank_changes[size][speed][rank_i] &&
+                                    data[name].unexpected_rank_changes[size][speed][rank_i][handicap]
+                                ) {
+                                    ret.winrate_by_rank[rank].unexpected_rank_changes += data[name].unexpected_rank_changes[size][speed][rank_i][handicap];
+                                    unexpected_total += data[name].unexpected_rank_changes[size][speed][rank_i][handicap];
+                                }
+                                ret.winrate_by_rank[rank].samples += data[name].count[size][speed][rank_i][handicap];
+                                sample_total += data[name].count[size][speed][rank_i][handicap];
+                            }
                         }
                     }
                 }
@@ -110,18 +143,104 @@ function processDataSet(name: string, sizes:Array<number>, speeds:Array<number>,
         }
     }
 
-    let avg_winrate = 0;
+    let avg_winrate_by_rank = 0;
 
-    for (let rank=0; rank < 40; ++rank) {
-        if (ret.winrate[rank].samples > 0) {
-            avg_winrate += ret.winrate[rank].winrate;
-            ret.winrate[rank].winrate /= ret.winrate[rank].samples;
+    for (let rank of ranks) {
+        if (ret.winrate_by_rank[rank].samples > 0) {
+            avg_winrate_by_rank += ret.winrate_by_rank[rank].winrate;
+            ret.winrate_by_rank[rank].winrate /= ret.winrate_by_rank[rank].samples;
+            ret.winrate_by_rank[rank].predicted /= ret.winrate_by_rank[rank].samples;
         }
     }
 
     ret.info.num_samples = sample_total;
     ret.info.ignored = data[name].ignored;
-    ret.avg_winrate = avg_winrate / sample_total;
+    ret.info.unexpected_rank_changes = unexpected_total;
+    ret.avg_winrate_by_rank = avg_winrate_by_rank / sample_total;
+
+
+    /* Carry forward entries that have been banded together to make plotting easier */
+    let last:any = null;
+    for (let i=0; i < ret.winrate_by_rank.length; ++i) {
+        if (ret.winrate_by_rank[i]) {
+            last = ret.winrate_by_rank[i];
+        } else {
+            ret.winrate_by_rank[i] = last;
+        }
+    }
+
+    return ret;
+}
+function processDatasetByHandicap(name: string, sizes:Array<number>, speeds:Array<number>, ranks:Array<number>, rank_band:number=1):DatasetByHandicap {
+    let ret:DatasetByHandicap = {
+        info: parseDatasetName(name),
+        winrate_by_handicap: [],
+        avg_winrate_by_handicap: 0,
+    };
+
+    if (sizes.length === 0) {
+        sizes = [ALL];
+    }
+    if (speeds.length === 0) {
+        speeds = [ALL];
+    }
+
+    if (ranks.length === 0) {
+        for (let rank=0; rank < 40; rank += rank_band) {
+            ranks.push(rank);
+        }
+    }
+
+    for (let handicap=0; handicap <= 9; handicap++) {
+        ret.winrate_by_handicap[handicap] ={
+            label: `${handicap}`,
+            winrate: 0,
+            samples: 0,
+        };
+    }
+
+    let sample_total = 0;
+
+    for (let size of sizes) {
+        for (let speed of speeds) {
+            for (let handicap=0; handicap <= 9; ++handicap) {
+                for (let rank of ranks) {
+                    for (let rank_band_i = 0; rank_band_i < rank_band; ++rank_band_i) {
+                        let rank_i = rank + rank_band_i;
+                        ;
+                        if (
+                            data[name]?.black_wins[size] && data[name].black_wins[size][speed]
+                            && data[name].black_wins[size][speed][rank_i]
+                            && data[name].black_wins[size][speed][rank_i][handicap]
+                        ) {
+                            if (
+                                rank in data[name].black_wins[size][speed] &&
+                                rank_i in data[name].black_wins[size][speed]
+                            ) {
+                                ret.winrate_by_handicap[handicap].winrate += data[name].black_wins[size][speed][rank_i][handicap];
+                                ret.winrate_by_handicap[handicap].samples += data[name].count[size][speed][rank_i][handicap];
+                                sample_total += data[name].count[size][speed][rank_i][handicap];
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
+    let avg_winrate_by_handicap = 0;
+
+    for (let handicap=0; handicap <= 9; handicap++) {
+        if (ret.winrate_by_handicap[handicap].samples > 0) {
+            avg_winrate_by_handicap += ret.winrate_by_handicap[handicap].winrate;
+            ret.winrate_by_handicap[handicap].winrate /= ret.winrate_by_handicap[handicap].samples;
+        }
+    }
+
+    ret.info.num_samples = sample_total;
+    ret.info.ignored = data[name].ignored;
+    ret.avg_winrate_by_handicap = avg_winrate_by_handicap / sample_total;
 
     return ret;
 }
@@ -148,6 +267,7 @@ function parseDatasetName(name: string):ParsedDatasetName {
         num_samples: parseInt(components[2]),
         rating_system: components[3],
         ignored: 0,
+        unexpected_rank_changes: 0,
     };
 
     switch (ret.rating_system) {
@@ -186,8 +306,15 @@ function Main(props:{}):JSX.Element {
             speeds: [],
             handicaps: [],
         }));
+    let selected_datasets = storageGet('selected_datasets', [getLatestDatasetName()]);
+    for (let name in selected_datasets) {
+        if (!(name in data)) {
+            selected_datasets = [getLatestDatasetName()];
+            break;
+        }
+    }
     let [datasets, _set_datasets]:[Array<string>, (s:Array<string>) => void] =
-        useState(storageGet('selected_datasets', [getLatestDatasetName()]));
+        useState(selected_datasets);
     let [ct, setCt]:[number, (x:number) => void] = useState(1);
 
 
@@ -213,8 +340,6 @@ function Main(props:{}):JSX.Element {
     }
 
 
-    //let latest = processDataSet(getLatestDatasetName());
-
     return (
         <div id='Main'>
             <div className='configuration'>
@@ -227,14 +352,28 @@ function Main(props:{}):JSX.Element {
 
             <div className='StatsContainer'>
                 {datasets.map(name => {
-                    let dataset = processDataSet(
+                    let dataset_by_rank = processDatasetByRank(
                         name,
                         size_speed_handicap.sizes,
                         size_speed_handicap.speeds,
                         size_speed_handicap.handicaps,
+                        1,
                     )
-                    console.log("hmm");
-                    return <Stats key={name} dataset={dataset} />;
+                    let dataset_by_handicap = processDatasetByHandicap(
+                        name,
+                        size_speed_handicap.sizes,
+                        size_speed_handicap.speeds,
+                        [],
+                        1,
+                    )
+                    return (
+                        <div className='Stats' key={name}>
+                            <GeneralStats dataset={dataset_by_rank} />
+                            <WinRateByRank dataset={dataset_by_rank} />
+                            <RankDistribution dataset={data[name].rank_distribution} />
+                            <WinRateByHandicap dataset={dataset_by_handicap} />
+                        </div>
+                    );
                 })}
             </div>
         </div>
@@ -348,24 +487,72 @@ function SizeSpeedHandicapSelector({state, onChange}
 
 
 
-function Stats({dataset}:{dataset: Dataset}):JSX.Element {
+function GeneralStats({dataset}:{dataset: DatasetByRank}):JSX.Element {
 
     return (
-        <div className='Stats'>
+        <React.Fragment>
             <DataSetDescription parsed={dataset.info} />
+            <b>Unexpected rank changes: </b> {dataset.info.unexpected_rank_changes}
+        </React.Fragment>
+    );
 
-            <h5>Black Win Rate: {(dataset.avg_winrate * 100).toFixed(1)}%</h5>
+}
+function RankDistribution({dataset}:{dataset: Array<number>}):JSX.Element {
+    let avg = 0;
+    let samples = 0;
+    let max_ct = 0;
+    for (let rank of dataset) {
+        if (dataset[rank]) {
+            avg += rank * dataset[rank];
+            samples += dataset[rank];
+            max_ct = Math.max(max_ct, dataset[rank]);
+        }
+    }
+    avg /= samples;
+    console.log(avg);
+
+    return (
+        <div>
+            <h5>Rank Distribution: Average rank: {rankString(avg, true)}</h5>
 
             <ComposedChart
                 width={500}
                 height={300}
-                data={dataset.winrate}
+                data={dataset.map((v, idx) => ({label: rankString(idx), count: v}))}
                 margin={{
                     top: 20, right: 50, left: 20, bottom: 5,
                 }}
                 >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis tickFormatter={(v:any) => dataset.winrate[v].label} />
+                <XAxis tickFormatter={(v:any) => rankString(v)} />
+                <YAxis domain={[0,max_ct * 1.1]} tickFormatter={(v:number) => humanNumber(v)} />
+
+                <Tooltip
+                    labelFormatter={(v:any) => rankString(v)}
+                    filterNull={true}
+                />
+                <Legend />
+                <Bar name="Players" dataKey={(e => e.count)} fill="#82ca9d" />
+            </ComposedChart>
+        </div>
+    );
+
+}
+function WinRateByRank({dataset}:{dataset: DatasetByRank}):JSX.Element {
+    return (
+        <div>
+            <h5>Black Win Rate by Rank: {(dataset.avg_winrate_by_rank * 100).toFixed(1)}%</h5>
+
+            <ComposedChart
+                width={500}
+                height={300}
+                data={dataset.winrate_by_rank}
+                margin={{
+                    top: 20, right: 50, left: 20, bottom: 5,
+                }}
+                >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis tickFormatter={(v:any) => dataset.winrate_by_rank[v].label} />
                 <YAxis domain={[0,100]} tickFormatter={(v:number) => `${v}%`} />
 
                 <Tooltip
@@ -384,9 +571,6 @@ function Stats({dataset}:{dataset: Dataset}):JSX.Element {
                     }}
                 />
                 <Legend />
-                <ReferenceLine x="Page C" stroke="red" label="Max PV PAGE" />
-                <ReferenceLine y={dataset.avg_winrate * 100} stroke="blue" />
-                <Line name="Black win rate" type="monotone" dataKey={(e => parseFloat((e.winrate * 100.0).toFixed(2)))} stroke="#8884d8" />
                 <Bar name="Samples" dataKey={(e => parseFloat((e.samples * 100.0 / dataset.info.num_samples).toFixed(2)))} fill="#82ca9d" />
                 <Area legendType="none" type="step" stroke = "#cccccc" fill="#cccccc"
                     name="insufficient data"
@@ -394,8 +578,60 @@ function Stats({dataset}:{dataset: Dataset}):JSX.Element {
                         (e.samples / dataset.info.num_samples) > 0.01 || e.samples > 100 ? 0 : 100)
                     }
                     />
+                <ReferenceLine y={dataset.avg_winrate_by_rank * 100} stroke="blue" />
+                <Line name="Predicted" type="monotone" dot={false} dataKey={(e => parseFloat((e.predicted * 100.0).toFixed(2)))} stroke="#cccccc" />
+                <Line name="Black win rate" type="monotone" dataKey={(e => parseFloat((e.winrate * 100.0).toFixed(2)))} stroke="#8884d8" />
             </ComposedChart>
         </div>
     );
 
+}
+
+
+function WinRateByHandicap({dataset}:{dataset: DatasetByHandicap}):JSX.Element {
+
+    return (
+        <div>
+            <h5>Black Win Rate by Handicap: {(dataset.avg_winrate_by_handicap * 100).toFixed(1)}%</h5>
+
+            <ComposedChart
+                width={500}
+                height={300}
+                data={dataset.winrate_by_handicap}
+                margin={{
+                    top: 20, right: 50, left: 20, bottom: 5,
+                }}
+                >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis tickFormatter={(v:any) => dataset.winrate_by_handicap[v].label} />
+                <YAxis domain={[0,100]} tickFormatter={(v:number) => `${v}%`} />
+
+                <Tooltip
+                    labelFormatter={(v:any) => `Handicap: ${v}`}
+                    filterNull={true}
+                    formatter={(v, name, props) => {
+                        if (name === "insufficient data") {
+                            return v ? 'yes' : 'no';
+                        }
+
+                        if (name === "Samples") {
+                            return `${v}%  [${humanNumber((v as number / 100) * dataset.info.num_samples)}]`;
+                        }
+
+                        return `${v}%`;
+                    }}
+                />
+                <Legend />
+                <Bar name="Samples" dataKey={(e => parseFloat((e.samples * 100.0 / dataset.info.num_samples).toFixed(2)))} fill="#82ca9d" />
+                <Area legendType="none" type="step" stroke = "#cccccc" fill="#cccccc"
+                    name="insufficient data"
+                    dataKey={(e =>
+                        (e.samples / dataset.info.num_samples) > 0.01 || e.samples > 100 ? 0 : 100)
+                    }
+                    />
+                <ReferenceLine y={dataset.avg_winrate_by_handicap * 100} stroke="blue" />
+                <Line name="Black win rate" type="monotone" dataKey={(e => parseFloat((e.winrate * 100.0).toFixed(2)))} stroke="#8884d8" />
+            </ComposedChart>
+        </div>
+    );
 }
