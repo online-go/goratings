@@ -1,0 +1,43 @@
+{
+    "compileOnSave": false,
+    "buildOnSave": false,
+    "compilerOptions": {
+        "outDir": "./dist/",
+        "target": "es5",
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "removeComments": false,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+
+        "lib": ["es5", "dom"],
+        "baseUrl": "",
+        "paths": {
+            "*": [
+                "./ui/*"
+            ]
+        },
+
+        "esModuleInterop": true,
+
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitAny": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "strictBindCallApply": true,
+        "strictFunctionTypes": true,
+        "strictNullChecks": true,
+        "strictPropertyInitialization": true,
+        "noUnusedLocals": true,
+
+        "sourceMap": true,
+        "jsx": "react"
+    },
+    "exclude": [
+        "node_modules",
+        "dist"
+    ],
+    "files": [
+        "./main.tsx"
+    ]
+}

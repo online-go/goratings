@@ -11,6 +11,7 @@ class InMemoryStorage(Storage):
     _timeout_flags: DefaultDict[int, bool]
     _match_history: DefaultDict[int, List[Tuple[int, Any]]]
     _rating_history: DefaultDict[int, List[Tuple[int, Any]]]
+    _set_count: DefaultDict[int, int]
     entry_type: Any
 
     def __init__(self, entry_type: type) -> None:
@@ -18,6 +19,7 @@ class InMemoryStorage(Storage):
         self._timeout_flags = defaultdict(lambda: False)
         self._match_history = defaultdict(lambda: [])
         self._rating_history = defaultdict(lambda: [])
+        self._set_count = defaultdict(lambda: 0)
         self.entry_type = entry_type
 
     def get(self, player_id: int) -> Any:
@@ -27,6 +29,16 @@ class InMemoryStorage(Storage):
 
     def set(self, player_id: int, entry: Any) -> None:
         self._data[player_id] = entry
+        self._set_count[player_id] += 1
+
+    def clear_set_count(self, player_id: int) -> None:
+        self._set_count[player_id] = 0
+
+    def get_set_count(self, player_id: int) -> int:
+        return self._set_count[player_id]
+
+    def all_players(self) -> Dict[int, Any]:
+        return self._data
 
     def get_timeout_flag(self, player_id: int) -> bool:
         return self._timeout_flags[player_id]

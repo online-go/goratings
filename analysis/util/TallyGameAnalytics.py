@@ -1,14 +1,19 @@
 import configparser
+import json
 import os
 import sys
 from collections import defaultdict
 from math import isnan
-from typing import DefaultDict, Union
+from time import time
+from typing import Any, DefaultDict, Dict, Union
 
 from goratings.interfaces import Storage
 
+from .Config import config
+from .GameData import datasets_used
 from .Glicko2Analytics import Glicko2Analytics
-from .RatingMath import rating_to_rank
+from .GorAnalytics import GorAnalytics
+from .RatingMath import rating_config, rating_to_rank
 
 from sys import argv
 from pathlib import Path
@@ -106,11 +111,44 @@ class TallyGameAnalytics:
                                 # black lost but her rating increased
                                 self.unexpected_rank_changes[size][speed][rank][handicap] += 1
 
+    def add_gor_analytics(self, result: GorAnalytics) -> None:
+        if result.skipped:
+            return
+
+        if result.black_games_played < 5 or result.white_games_played < 5:
+            self.games_ignored += 1
+            return
+
+        if abs(result.black_rank + result.game.handicap - result.white_rank) > 1:
+            self.games_ignored += 1
+            return
+
+        black_won = result.game.winner_id == result.game.black_id
+
+        for size in [ALL, result.game.size]:
+            for speed in [ALL, result.game.speed]:
+                for rank in [
+                    ALL,
+                    str((int(result.black_rank) // 5) * 5) + "+5",
+                    int(result.black_rank),
+                ]:
+                    for handicap in [ALL, result.game.handicap]:
+                        if isinstance(rank, int) or isinstance(
+                            rank, str
+                        ):  # this is just to make mypy happy
+                            if black_won:
+                                self.black_wins[size][speed][rank][handicap] += 1
+                            self.predictions[size][speed][rank][
+                                handicap
+                            ] += result.expected_win_rate
+                            self.count[size][speed][rank][handicap] += 1
+
     def print(self) -> None:
         self.print_handicap_performance()
         self.print_handicap_prediction()
         self.print_inspected_players()
         self.print_compact_stats()
+        self.update_visualizer_data()
 
     def print_compact_stats(self) -> None:
         print("")
@@ -124,9 +162,10 @@ class TallyGameAnalytics:
                                                                                                                      prediction_h2=self.predicted_outcome[19][ALL][ALL][2]/self.count[19][ALL][ALL][2],
                                                                                                                      unexp_change=self.unexpected_rank_changes[ALL][ALL][ALL][ALL]/self.count[ALL][ALL][ALL][ALL]/2))
 
+
     def print_inspected_players(self) -> None:
-        config = configparser.ConfigParser()
-        config.optionxform = lambda s: s  # type: ignore
+        ini = configparser.ConfigParser()
+        ini.optionxform = lambda s: s  # type: ignore
         fname = "players_to_inspect.ini"
         if os.path.exists(fname):
             pass
@@ -135,12 +174,23 @@ class TallyGameAnalytics:
         if os.path.exists("../" + fname):
             fname = "../" + fname
         if os.path.exists(fname):
-            config.read(fname)
-            if "ogs" in config:
+            ini.read(fname)
+
+            sections = []
+
+            datasets = datasets_used()
+
+            if datasets["ogs"]:
+                sections.append("ogs")
+
+            if datasets["egf"]:
+                sections.append("egf")
+
+            for section in sections:
                 print("")
-                print("Inspected users from %s" % fname)
-                for name in config["ogs"]:
-                    id = int(config["ogs"][name])
+                print("Inspected %s users from %s" % (section, fname))
+                for name in ini[section]:
+                    id = int(ini[section][name])
                     entry = self.storage.get(id)
                     last_game = self.storage.get_first_timestamp_older_than(id, 999999999999)
                     if last_game is None:
@@ -220,6 +270,79 @@ class TallyGameAnalytics:
                         )
                     )
                 sys.stdout.write("\n")
+
+    def get_config(self) -> Any:
+        ret: Dict[str, Any] = {}
+
+        ds_used = datasets_used()
+        datasets = []
+        for key in ds_used:
+            if ds_used[key]:
+                datasets.append(key)
+        ret["name"] = config.name
+        ret["datasets"] = datasets
+        ret["num_games"] = config.args.num_games
+        ret["rating_config"] = rating_config
+
+        return ret
+
+    def get_descriptive_name(self) -> str:
+        cfg = self.get_config()
+
+        lst = [
+            cfg["name"],
+            ",".join(cfg["datasets"]),
+            str(cfg["num_games"]),
+            cfg["rating_config"]["system"],
+        ]
+
+        if "a" in cfg["rating_config"]:
+            lst.append(str(cfg["rating_config"]["a"]))
+        if "b" in cfg["rating_config"]:
+            lst.append(str(cfg["rating_config"]["b"]))
+        if "c" in cfg["rating_config"]:
+            lst.append(str(cfg["rating_config"]["c"]))
+        if "m" in cfg["rating_config"]:
+            lst.append(str(cfg["rating_config"]["m"]))
+
+        return ":".join(lst)
+
+    def update_visualizer_data(self) -> Any:
+        fname: str = "data.json"
+
+        if os.path.exists("visualizer/"):
+            fname = "visualizer/data.json"
+        elif os.path.exists("analysis/visualizer/"):
+            fname = "analysis/visualizer/data.json"
+        else:
+            raise Exception("Can't find visualizer directory")
+
+        data: Any = {}
+
+        if os.path.exists(fname):
+            with open(fname, "r") as f:
+                data = json.load(f)
+
+        obj: Any = {}
+        obj["name"] = self.get_descriptive_name()
+        obj["timestamp"] = time()
+        obj["black_wins"] = self.black_wins
+        obj["predictions"] = self.predictions
+        obj["count"] = self.count
+        obj["ignored"] = self.games_ignored
+        obj["config"] = self.get_config()
+
+        rank_distribution: Any = defaultdict(lambda: 0)
+        for _id, player in self.storage.all_players().items():
+            rank = num2rank(rating_to_rank(player.rating))
+            rank_distribution[rank] += 1
+
+        obj["rank_distribution"] = rank_distribution
+
+        data[obj["name"]] = obj
+
+        with open(fname, "w") as f:
+            json.dump(data, f)
 
 
 def num2rank(num: float) -> str:

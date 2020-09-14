@@ -1,0 +1,19 @@
+language: python
+
+python:
+  - 3.7
+
+build:
+  pre_ci_boot:
+    image_name: drydock/u16pytall
+    image_tag: v7.2.4
+
+  ci:
+    - pip install -r requirements.txt
+    - make shippable-test
+    - make shippable-lint
+
+  cache: true
+
+  cache_dir_list:
+    - $SHIPPABLE_BUILD_DIR/.venv

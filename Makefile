@@ -4,8 +4,7 @@ help:
 
 .venv venv:
 	virtualenv -ppython3 .venv
-	.venv/bin/pip install tox
-	.venv/bin/pip install python-dateutil
+	.venv/bin/pip install -r requirements.txt
 
 100k:
 	python -m goratings
@@ -20,8 +19,14 @@ lint: .venv
 	@set -e && .venv/bin/tox -e linters
 
 format black: .venv
-	isort -y --multi-line=3 --trailing-comma --force-grid-wrap=0 --use-parentheses --line-width=88 
+	isort --multi-line=3 --trailing-comma --force-grid-wrap=0 --use-parentheses --line-width=88  unit_tests goratings analysis/util
 	.venv/bin/tox -e linters --notest
 	.tox/linters/bin/black --target-version py38 goratings unit_tests analysis/util
+
+shippable-test:
+	tox -e py3
+
+shippable-lint:
+	tox -e linters
 
 .PHONY: lint test format
