@@ -92,6 +92,8 @@ class DailyWindows(RatingSystem):
             white_deviation=white_cur.deviation,
             black_rank=rating_to_rank(black_cur.rating),
             white_rank=rating_to_rank(white_cur.rating),
+            black_updated_rating=updated_black.rating,
+            white_updated_rating=updated_white.rating,
         )
 
 

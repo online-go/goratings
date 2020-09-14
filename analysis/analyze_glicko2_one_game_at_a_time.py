@@ -65,6 +65,8 @@ class OneGameAtATime(RatingSystem):
 
         self._storage.set(game.black_id, updated_black)
         self._storage.set(game.white_id, updated_white)
+        self._storage.add_rating_history(game.black_id, game.ended, updated_black)
+        self._storage.add_rating_history(game.white_id, game.ended, updated_white)
 
         return Glicko2Analytics(
             skipped=False,
@@ -78,6 +80,8 @@ class OneGameAtATime(RatingSystem):
             white_deviation=white.deviation,
             black_rank=rating_to_rank(black.rating),
             white_rank=rating_to_rank(white.rating),
+            black_updated_rating=updated_black.rating,
+            white_updated_rating=updated_white.rating,
         )
 
 

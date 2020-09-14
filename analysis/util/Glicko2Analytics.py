@@ -11,6 +11,8 @@ class Glicko2Analytics(GameAnalytics):
     white_deviation: float
     black_rank: float
     white_rank: float
+    black_updated_rating: float
+    white_updated_rating: float
 
     def __init__(
         self,
@@ -23,6 +25,8 @@ class Glicko2Analytics(GameAnalytics):
         white_deviation: float = 0,
         black_rank: float = 0,
         white_rank: float = 0,
+        black_updated_rating: float = 0,
+        white_updated_rating: float = 0,
     ) -> None:
         super().__init__(skipped, game)
         self.expected_win_rate = expected_win_rate
@@ -32,6 +36,8 @@ class Glicko2Analytics(GameAnalytics):
         self.white_deviation = white_deviation
         self.black_rank = black_rank
         self.white_rank = white_rank
+        self.black_updated_rating = black_updated_rating
+        self.white_updated_rating = white_updated_rating
 
     def __str__(self) -> str:
         return "%.1f vs %.1f (hc: %d)  Expected win rate: %.1f" % (
