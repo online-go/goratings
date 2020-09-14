@@ -501,7 +501,7 @@ function RankDistribution({dataset}:{dataset: Array<number>}):JSX.Element {
     let avg = 0;
     let samples = 0;
     let max_ct = 0;
-    for (let rank of dataset) {
+    for (let rank=0; rank < 40; ++rank) {
         if (dataset[rank]) {
             avg += rank * dataset[rank];
             samples += dataset[rank];
