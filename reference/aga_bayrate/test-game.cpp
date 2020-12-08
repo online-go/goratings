@@ -32,15 +32,9 @@ game::~game(void)
 {
 }
 
-/****************************************************************
-
-calc_handicapeqv ()
-
-Calculates the equivalent rating difference for the handicap/komi
-conditions of this game.
-
-*****************************************************************/
 void game::calc_handicapeqv() {
+
+/*
 	if (handicap == 0) {
 		handicapeqv = 0.580 - 0.0757 * komi;
 		sigma_px = 1.0649 - 0.0021976 * komi + 0.00014984 * komi * komi;
@@ -78,5 +72,14 @@ void game::calc_handicapeqv() {
 				sigma_px += 1.43614;
 				break;	
 		}	
+	}
+	
+*/
+	sigma_px=1.04;
+	if (handicap >= 2) {
+		handicapeqv = handicap - 0.1 * komi; 
+	}
+	else {
+		handicapeqv = 0.5 - 0.1*komi;
 	}
 }

@@ -15,7 +15,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with BayRate.  If not, see <http://www.gnu.org/licenses/>.
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
     
 ***************************************************************************************/
 
@@ -30,8 +30,12 @@ public:
 	~tdListEntry() {};
 	int id;
 	double rating;
+	double rating_ante;
 	double sigma;
+	double sigma_ante;
 	std::string name;
+	std::string tournaments;
 	boost::gregorian::date lastRatingDate;
 	bool ratingUpdated;
 };
+

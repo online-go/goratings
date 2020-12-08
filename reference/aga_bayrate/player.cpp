@@ -15,7 +15,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with BayRate.  If not, see <http://www.gnu.org/licenses/>.
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
     
 ***************************************************************************************/
 
@@ -95,3 +95,4 @@ double player::calc_init_sigma (double seed) {
 
 	return result;
 }
+

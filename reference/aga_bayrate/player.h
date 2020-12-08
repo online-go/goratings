@@ -31,5 +31,5 @@ public:
 	double sigma;				// Standard deviation of rating
 	double rating;				// Current rating in the iteration
 	int id;
-	int index;					// Index of the GSL vector element that corresponds to the rating of this player
+	int index;				// Index of the GSL vector element that corresponds to the rating of this player
 };

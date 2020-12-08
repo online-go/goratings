@@ -41,9 +41,22 @@ int main(int argc, char *argv[])
  	map<int, tdListEntry> tdList;
  	map<string, bool> argList;
  	collection c;
+	bool commit = false;
+	bool onlyone = false;
+	bool showplayerhash = false;
+	bool verbose_getTDList = false;
 
 	for (int i=1; i<argc; i++) 
 		argList[string(argv[i])] = true;
+
+	if (argList.find(string("--commit")) != argList.end())
+		commit = true;
+
+	if (argList.find(string("--getTDList")) != argList.end())
+		verbose_getTDList = true;
+
+	if (argList.find(string("--onlyOne")) != argList.end())
+		onlyone = true;
 
  	// Establish the database connection			
 	if ( !db.makeConnection() ) {	
@@ -51,6 +64,10 @@ int main(int argc, char *argv[])
 		exit (1);
 	}
 
+	db.onlyOne(onlyone);
+	db.showAGAGD (false);
+	db.showRatingsDB (false);
+	db.showMembersDB (false);
 	db.excludeBogusGameData();
 
 	// Figure out which tournaments need rating
@@ -64,11 +81,17 @@ int main(int argc, char *argv[])
 		exit(1);
 	}	
 	else {
-		cout << "Updating all tournaments after " << to_iso_extended_string(tournamentCascadeDate) << endl;
+		if (not onlyone)
+			cout << "Updating all tournaments after " << to_iso_extended_string(tournamentCascadeDate) << endl;
+		else 
+			cout << "Updating one tournament only " << to_iso_extended_string(tournamentCascadeDate) << endl;
+			
 	}
+	if (onlyone)
+		tournamentUpdateList.erase(tournamentUpdateList.begin()+1, tournamentUpdateList.end());
 	
 	// Get the TDList immediately prior to the earliest unrated game
-	if (!db.getTDList(tournamentCascadeDate, tdList)) {
+	if (!db.getTDListPrior(tournamentCascadeDate, tdList, verbose_getTDList)) {
 		std::cerr << "Fatal error: db.getTDList() failed." << std::endl;
 		exit(1);
 	}
@@ -77,16 +100,22 @@ int main(int argc, char *argv[])
 	}
 	
 	for (vector<string>::iterator It=tournamentUpdateList.begin(); It!=tournamentUpdateList.end(); It++) {
-		cout << "Processing " << *It << endl;
 		
 		c.reset();	
+		c.setQuiet(true);
+
 		db.getTournamentInfo(*It, c);
 
-		if (c.gameList.size() == 0)
+		cout << ": Processing " << *It << "...";
+
+		if (c.gameList.size() == 0) {
+			cout << "no games...skipping." << endl;
 			continue;
+		}
 		
 		c.initSeeding(tdList);
-		
+		cout << "initSeeding() complete..." << endl;
+
 		// Start with the fast rating algorithm.  If it fails, then go for the simplex method as a backup. 
 		if (c.calc_ratings_fdf() != 0) {
 			if (c.calc_ratings() != 0) {
@@ -94,30 +123,76 @@ int main(int argc, char *argv[])
 				exit(1); 
 			}	
 		}
+		cout << "\tcalc_ratings_fdf() complete using " << c.getFdfIterations() << " fdf iterations and "
+			<< c.getSimplexIterations() << " simplex iterations..." << endl;
 		
-		// Copy the new ratings into the internal TDList for the next tournament update
+		// Overwrite the previous ratings with the new ratings in the internal 
+		// TDList to prepare for the next tournament update
 		for (map<int, player>::iterator It = c.playerHash.begin(); It != c.playerHash.end(); It++) {
-			tdList[It->second.id].id     = It->second.id;			
-			tdList[It->second.id].rating = It->second.rating;
-			tdList[It->second.id].sigma  = It->second.sigma;
+			tdList[It->second.id].id             = It->second.id;
+
+			if (fabs(tdList[It->second.id].rating) < 1.0) {
+				tdList[It->second.id].rating_ante = 0.0;
+			}
+			else {
+				tdList[It->second.id].rating_ante    = tdList[It->second.id].rating;
+			}
+
+			if (fabs(tdList[It->second.id].sigma) < 0.0000001) {
+				tdList[It->second.id].sigma_ante    = 0.0;
+			}
+			else {
+				tdList[It->second.id].sigma_ante     = tdList[It->second.id].sigma;
+			}
+
+			tdList[It->second.id].rating         = It->second.rating;
+			tdList[It->second.id].sigma          = It->second.sigma;
 			tdList[It->second.id].lastRatingDate = c.tournamentDate;
-			tdList[It->second.id].ratingUpdated = true;
+			tdList[It->second.id].tournaments    += " ";
+			tdList[It->second.id].tournaments    += c.tournamentCode;
+			tdList[It->second.id].ratingUpdated  = true;
 		
-			cout << It->second.id << '\t' << It->second.rating << '\t' << It->second.sigma << endl;
-		}				
-	    cout << endl;
+			if (showplayerhash) {
+				cout << It->second.id << '\t' << It->second.rating << ' ' << It->second.sigma <<  '\t' 
+					<< tdList[It->second.id].rating_ante << ' ' << tdList[It->second.id].sigma_ante 
+					<< '\t' << tdList[It->second.id].name << endl;
+			}
+		}
 	    
 		// Update database
-		if (argList.find(string("--commit")) != argList.end()) {
-			cout << "Committing results to database...";		
-			db.syncNewRatings(c);		
-			cout << "done." << endl;
+		if (commit) {
+			cout << "Committing results to database..." << endl;
+			db.syncNewRatings(c, commit);		
+			cout << "syncNewRatings() complete..." << endl;
 		}
+		else {
+			db.syncNewRatings(c, false);		
+		}
+
+		cout << "done." << endl;
+		cout << endl;
 	}
+
 	cout << "Done ratings" << endl;
 	
+	cout << setw(6) << "AGA ID" << ' ' 
+		<< setw(10) << "New Rating" << ' ' 
+		<< setw(9)  << "New Sigma" << "  ::  "
+		<< setw(10) << "old rating" << ' ' 
+		<< setw(9)  << "old sigma" << ' '
+		<< setw(20) << "Player Name" << ' ' 
+		<< setw(18)   << "Tournament Code" << endl;
+
 	for (map<int, tdListEntry>::iterator tdListIt = tdList.begin(); tdListIt != tdList.end(); tdListIt++) {
-		if (tdListIt->second.ratingUpdated)
-			cout << tdListIt->second.id << '\t' << tdListIt->second.rating << '\t' << tdListIt->second.sigma << endl;
+
+		if (tdListIt->second.ratingUpdated) {
+			cout << setw(6) << tdListIt->second.id << ' ' 
+				<< setw(10) << tdListIt->second.rating << ' ' 
+				<< setw(9)  << tdListIt->second.sigma << "  ::  "
+				<< setw(10) << tdListIt->second.rating_ante << ' ' 
+				<< setw(9)  << tdListIt->second.sigma_ante << ' '
+				<< setw(20) << tdListIt->second.name << ' ' 
+				<< setw(18) << tdListIt->second.tournaments << endl;
+		}
 	}
 }

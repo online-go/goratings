@@ -73,6 +73,12 @@ collection::collection(void)
 	// Initialize a random number generator
 	T = gsl_rng_default;
 	r = gsl_rng_alloc(T);
+	
+	// Emit messages?
+	quiet = false;
+
+	fdfiterations = 0;
+	simplexiterations = 0;
 }
 
 collection::~collection(void)
@@ -83,6 +89,18 @@ collection::~collection(void)
 void collection::reset() {
 	playerHash.clear();
 	gameList.clear();
+}
+
+void collection::setQuiet (bool q) {
+	quiet = q;
+}
+
+int  collection::getFdfIterations() {
+	return fdfiterations;
+}
+
+int  collection::getSimplexIterations() {
+	return simplexiterations;
 }
 
 /****************************************************************
@@ -322,7 +340,7 @@ the program prints an error message and fails.
 
 *****************************************************************/
 int collection::calc_ratings() {
-	const gsl_multimin_fminimizer_type *T = gsl_multimin_fminimizer_nmsimplex2;
+	const gsl_multimin_fminimizer_type *T = gsl_multimin_fminimizer_nmsimplex;
 	gsl_multimin_fminimizer *s = NULL;
 	gsl_vector *ss, *x;
 	gsl_multimin_function minex_func;
@@ -366,6 +384,7 @@ int collection::calc_ratings() {
 
 	do {
 		iter++;
+		simplexiterations = iter;
 		status = gsl_multimin_fminimizer_iterate(s);
 
 		if (status) 
@@ -374,12 +393,17 @@ int collection::calc_ratings() {
 		size = gsl_multimin_fminimizer_size (s);
 		status = gsl_multimin_test_size (size, 0.00001);
 
-		cout << "Iteration " << iter << "\tf() = " << s->fval << "\tsimplex size = " << size << endl;
+		if (!quiet) {
+			cout << "Iteration " << iter << "\tf() = " << s->fval << "\tsimplex size = " << size << endl;
+		}
 	} while ( (status == GSL_CONTINUE) && ( iter <= 1000000) );
 
 
-	if (status == GSL_SUCCESS)
-		cout << endl << "Converged to minimum. f() = " << s->fval << endl;
+	if (status == GSL_SUCCESS) {
+		if (!quiet) {
+			cout << endl << "Converged to minimum. f() = " << s->fval << endl;
+		}
+	}
 	else {
 		cout << "Error in minimization function f()" << endl;
 
@@ -473,20 +497,25 @@ int collection::calc_ratings_fdf() {
 	// until an error occurs.  
 	do {
 		iter++;	
+		fdfiterations = iter;
 		status = gsl_multimin_fdfminimizer_iterate(s);
-		
+
 		if (status) {
 			break;
 		}
 		
 		status = gsl_multimin_test_gradient (s->gradient, 0.001);
 		
-		cout << "Finished iteration " << iter << "\tf() = " << gsl_multimin_fdfminimizer_minimum(s) << "\tnorm = " << gsl_blas_dnrm2(gsl_multimin_fdfminimizer_gradient(s)) << "\tStatus = " << status << endl;
+		if (!quiet) {
+			cout << "Finished iteration " << iter << "\tf() = " << gsl_multimin_fdfminimizer_minimum(s) << "\tnorm = " << gsl_blas_dnrm2(gsl_multimin_fdfminimizer_gradient(s)) << "\tStatus = " << status << endl;
+		}
 	} while ((status == GSL_CONTINUE) && (iter < 10000));
 
 	if (status == GSL_SUCCESS) {
-		cout << endl << "Converged to minimum. "; 	
-		cout << "Norm(gradient) = " << gsl_blas_dnrm2(gsl_multimin_fdfminimizer_gradient(s)) << endl;
+		if (!quiet) {
+			cout << endl << "Converged to minimum. "; 	
+			cout << "Norm(gradient) = " << gsl_blas_dnrm2(gsl_multimin_fdfminimizer_gradient(s)) << endl;
+		}
 	}
 	else {
 		// Can hit an error by accident if the initial guess on player ratings happens to be exactly right.
@@ -621,7 +650,7 @@ void collection::initSeeding(map<int, tdListEntry> &tdList) {
 
 findImprobables () 
 
-Identify games that are highly improbable (<10% chance of being correct)
+Identify games that are highly improbable (<1% chance of occuring)
 Improbables usually indicates a data entry error or a player who h
 as improved dramatically since their last rating who needs to be reseeded. 
 

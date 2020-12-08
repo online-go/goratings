@@ -15,7 +15,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with BayRate.  If not, see <http://www.gnu.org/licenses/>.
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
     
 ***************************************************************************************/
 
@@ -38,8 +38,16 @@ int main(int argc, char *argv[])
  	vector<string> tournamentUpdateList;	// The list of tournaments after the tournamentCascadeDate
 	boost::gregorian::date tournamentCascadeDate;		
  	map<int, tdListEntry> tdList;
+ 	map<string, bool> argList;
  	collection c;
- 	
+	bool verbose_getTDList = false;
+
+	for (int i=1; i<argc; i++) 
+		argList[string(argv[i])] = true;
+
+	if (argList.find(string("--getTDList")) != argList.end())
+		verbose_getTDList = true;
+
  	// Establish the database connection			
 	if ( !db.makeConnection() ) {	
 		std::cerr << "Fatal error:  db.makeConnection() failed." << std::endl;
@@ -64,7 +72,7 @@ int main(int argc, char *argv[])
 	}
 	
 	// Get the TDList immediately prior to the earliest unrated game
-	if (!db.getTDList(tournamentCascadeDate, tdList)) {
+	if (!db.getTDListPrior(tournamentCascadeDate, tdList, verbose_getTDList)) {
 		std::cerr << "Fatal error: db.getTDList() failed." << std::endl;
 		exit(1);
 	}

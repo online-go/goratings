@@ -1,4 +1,8 @@
 bayrate
 check
 singlerate
+basicrate
+copyMembership
+syncDBs
 *.o
+db_passwords.h

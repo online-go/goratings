@@ -15,7 +15,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with BayRate.  If not, see <http://www.gnu.org/licenses/>.
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
     
 ***************************************************************************************/
 
@@ -56,9 +56,15 @@ public:
 	void reset();
 	void initSeeding(map<int, tdListEntry> &tdList);
 	void findImprobables(map<int, tdListEntry> &tdList);
-		
+	void setQuiet(bool q);
+	int  getFdfIterations();
+	int  getSimplexIterations();
+	
 private:
 	double PI;
 	const gsl_rng_type *T;
-	gsl_rng *r;	
+	gsl_rng *r;
+	bool quiet;
+	int  fdfiterations;
+	int  simplexiterations;
 };
