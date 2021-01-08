@@ -204,6 +204,18 @@ for row in rows:
         ),
     )
 
+c.execute(
+    """
+    CREATE INDEX black_ended ON game_records (black_id, -ended);
+    """
+)
+
+c.execute(
+    """
+    CREATE INDEX white_ended ON game_records (white_id, -ended);
+    """
+)
+
 conn.commit()
 c.close()
 conn.execute("VACUUM")
