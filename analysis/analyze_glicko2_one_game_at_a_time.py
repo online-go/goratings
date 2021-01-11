@@ -65,8 +65,8 @@ class OneGameAtATime(RatingSystem):
 
         self._storage.set(game.black_id, updated_black)
         self._storage.set(game.white_id, updated_white)
-        self._storage.add_rating_history(game.black_id, game.ended, updated_black)
-        self._storage.add_rating_history(game.white_id, game.ended, updated_white)
+        #self._storage.add_rating_history(game.black_id, game.ended, updated_black)
+        #self._storage.add_rating_history(game.white_id, game.ended, updated_white)
 
         return Glicko2Analytics(
             skipped=False,
@@ -98,3 +98,17 @@ for game in game_data:
     tally.add_glicko2_analytics(analytics)
 
 tally.print()
+
+self_reported_ratings = tally.get_self_reported_rating()
+if self_reported_ratings:
+    aga_1d = (self_reported_ratings['aga'][30] if 'aga' in self_reported_ratings else [1950.123456])
+    avg_1d_aga = sum(aga_1d) / len(aga_1d)
+    egf_1d = (self_reported_ratings['egf'][30] if 'egf' in self_reported_ratings else [1950.123456])
+    avg_1d_egf = sum(egf_1d) / len(egf_1d)
+    ratings_1d = ((self_reported_ratings['egf'][30] if 'egf' in self_reported_ratings else [1950.123456]) +
+                  (self_reported_ratings['aga'][30] if 'aga' in self_reported_ratings else [1950.123456]))
+    avg_1d_rating = sum(ratings_1d) / len(ratings_1d)
+
+    print("Avg 1d rating egf: %6.1f    aga: %6.1f     egf+aga: %6.1f" % (avg_1d_egf, avg_1d_aga, avg_1d_rating))
+
+
