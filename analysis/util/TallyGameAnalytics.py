@@ -3,11 +3,13 @@ import json
 import os
 import sys
 from collections import defaultdict
+from filelock import FileLock
 from math import isnan
 from pathlib import Path
 from sys import argv
-from time import time
-from typing import Any, DefaultDict, Dict, Union
+from statistics import mean
+from time import time, ctime
+from typing import Any, DefaultDict, Dict, Union, List
 
 from .Config import config
 from .GameData import datasets_used
@@ -15,11 +17,21 @@ from .Glicko2Analytics import Glicko2Analytics
 from .GorAnalytics import GorAnalytics
 from .InMemoryStorage import InMemoryStorage
 from .RatingMath import rating_config, rating_to_rank
+from .EGFGameData import EGFGameData
+from .AGAGameData import AGAGameData
 
-__all__ = ["TallyGameAnalytics"]
+__all__ = ["TallyGameAnalytics", "num2rank"]
 
 
+egfdb = EGFGameData()
+agadb = AGAGameData()
 ALL: int = 999
+EGF_OFFSET = 1000000000
+AGA_OFFSET = 2000000000
+LAST_ORG_GAME_PLAYED_CUTOFF = 1559347200 # 2019-06-01
+MIN_ORG_GAMES_PLAYED_CUTOFF = 6
+PROVISIONAL_DEVIATION_CUTOFF = 660
+
 
 # Result storage is indexed by size, speed, rank, handicap
 # Board size, `ALL` for all
@@ -39,7 +51,6 @@ class TallyGameAnalytics:
     count: ResultStorageType
     count_black_wins: ResultStorageType
     storage: InMemoryStorage
-    unexpected_rank_changes: ResultStorageType
 
     def __init__(self, storage: InMemoryStorage) -> None:
         self.games_ignored = 0
@@ -49,14 +60,11 @@ class TallyGameAnalytics:
         self.predicted_outcome = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0.0))))
         self.count = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0))))
         self.count_black_wins = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0))))
-        self.unexpected_rank_changes = defaultdict(
-            lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0)))
-        )
 
     def add_glicko2_analytics(self, result: Glicko2Analytics) -> None:
         if result.skipped:
             return
-        if result.black_deviation > 160 or result.white_deviation > 160:
+        if result.black_deviation > PROVISIONAL_DEVIATION_CUTOFF or result.white_deviation > PROVISIONAL_DEVIATION_CUTOFF:
             self.games_ignored += 1
             return
 
@@ -87,18 +95,6 @@ class TallyGameAnalytics:
                                 else (not black_won if result.expected_win_rate < 0.5 else 0.5)
                             )
                             self.count[size][speed][rank][handicap] += 1
-                            if black_won and not white_won and result.black_updated_rating - result.black_rating < 0:
-                                # black won but her rating dropped
-                                self.unexpected_rank_changes[size][speed][rank][handicap] += 1
-                            if black_won and not white_won and result.white_updated_rating - result.white_rating > 0:
-                                # white lost but her rating increased
-                                self.unexpected_rank_changes[size][speed][rank][handicap] += 1
-                            if white_won and not black_won and result.white_updated_rating - result.white_rating < 0:
-                                # white won but her rating dropped
-                                self.unexpected_rank_changes[size][speed][rank][handicap] += 1
-                            if white_won and not black_won and result.black_updated_rating - result.black_rating > 0:
-                                # black lost but her rating increased
-                                self.unexpected_rank_changes[size][speed][rank][handicap] += 1
 
     def add_gor_analytics(self, result: GorAnalytics) -> None:
         if result.skipped:
@@ -133,6 +129,7 @@ class TallyGameAnalytics:
         self.print_handicap_prediction()
         self.print_inspected_players()
         self.print_compact_stats()
+        self.print_self_reported_stats()
         self.update_visualizer_data()
 
     def print_compact_stats(self) -> None:
@@ -150,25 +147,19 @@ class TallyGameAnalytics:
         prediction_h2 = (
             self.predicted_outcome[19][ALL][ALL][2] / self.count[19][ALL][ALL][2] if self.count[19][ALL][ALL][2] else 0
         )
-        unexp_change = (
-            self.unexpected_rank_changes[ALL][ALL][ALL][ALL] / self.count[ALL][ALL][ALL][ALL] / 2
-            if self.count[ALL][ALL][ALL][ALL]
-            else 0
-        )
 
         print("")
         print("")
-        print("| Algorithm name | Stronger wins | h0 | h1 | h2 | rating changed in the wrong direction |")
-        print("|:---------------|--------------:|---:|---:|--------------:|---------------------------------------:")
+        print("| Algorithm name | Stronger wins | h0 | h1 | h2 |")
+        print("|:---------------|--------------:|---:|---:|--------------:|")
         print(
             "| {name:>s} | {prediction:>13.1%} | {prediction_h0:>5.1%} "
-            "| {prediction_h1:>5.1%} | {prediction_h2:>5.1%} | {unexp_change:>8.4%} |".format(
+            "| {prediction_h1:>5.1%} | {prediction_h2:>5.1%} |".format(
                 name=Path(argv[0]).name.replace("analyze_", "")[0:14],
                 prediction=prediction,
                 prediction_h0=prediction_h0,
                 prediction_h1=prediction_h1,
                 prediction_h2=prediction_h2,
-                unexp_change=unexp_change,
             )
         )
 
@@ -273,6 +264,240 @@ class TallyGameAnalytics:
                     )
                 sys.stdout.write("\n")
 
+    def print_self_reported_stats(self) -> None:
+        stats = self.get_self_reported_stats()
+        if not stats:
+            return
+        print('')
+        print('')
+
+        BAND_WIDTH = 5
+
+        header   = '                '
+        line = defaultdict(lambda: '')
+
+        for band in range(0, 40, BAND_WIDTH):
+            header += '%-4s - %-4s\t' % (num2rank(band), num2rank(band + 4))
+        for key in stats.keys():
+            line[key] = '%8s [%3d]:\t' % (key, len([item for sublist in stats[key] for item in sublist]))
+
+            for band in range(0, 40, BAND_WIDTH):
+                flat = [item for sublist in stats[key][band:band + BAND_WIDTH] for item in sublist]
+                if len(flat):
+                    avg = mean(flat)
+                    size = len(flat)
+                    line[key] += '%2.1f [%2d] \t' % (avg, size)
+                else:
+                    line[key] += '            \t'
+
+        print(header)
+        for key in stats.keys():
+            print(line[key])
+
+
+
+    def get_self_reported_stats(self) -> Dict[str, Dict[int, List[float]]]:
+        datasets = datasets_used()
+
+        if not datasets["ogs"]:
+            return
+
+
+        if os.path.exists('./data'):
+            pathname = './data/'
+        elif os.path.exists('../data'):
+            pathname = '../data/'
+        else:
+            raise Exception('Failed to find data directory')
+
+        if os.path.exists(pathname + 'self_repoted_account_links.full.json'):
+            pathname += 'self_repoted_account_links.full.json'
+        elif os.path.exists(pathname + 'self_repoted_account_links.json'):
+            pathname = 'self_repoted_account_links.json'
+        else:
+            raise Exception('Failed to find self_repoted_account_links json file')
+
+
+        with open(pathname, 'r') as f:
+            stats = json.loads(f.read())
+
+        def get_org_rank(entry, org_country):
+            for org in ['org1', 'org2', 'org3']:
+                if org in entry and entry[org] == org_country:
+                    if org + '_rank' in entry:
+                        return entry[org + '_rank']
+            return None
+
+        def get_org_id(entry, org_country):
+            for org in ['org1', 'org2', 'org3']:
+                if org in entry and entry[org] == org_country:
+                    if org + '_id' in entry:
+                        try:
+                            return int(entry[org + '_id'])
+                        except:
+                            return None
+            return None
+
+        def date(timestamp) -> str:
+            return ctime(timestamp) if timestamp else ''
+
+
+        egf_count = 0
+        aga_count = 0
+
+        bins     = defaultdict(lambda: defaultdict(lambda: list()))
+
+        for e in stats:
+            id = e[0]
+            username = e[1]
+            entry = e[2]
+            player = self.storage.get(id)
+            rank = rating_to_rank(player.rating)
+
+            aga = get_org_rank(entry, 'us')
+            egf = get_org_rank(entry, 'eu')
+            aga_id = get_org_id(entry, 'us')
+            egf_id = get_org_id(entry, 'eu')
+
+            if (aga and aga > 100) or (egf and egf > 100):
+                pass # throwout pros for our purposes
+
+
+            aga_num_games_played = agadb.num_games_played(aga_id + AGA_OFFSET) if aga_id else 0
+            aga_last_game_played = agadb.last_game_played(aga_id + AGA_OFFSET) if aga_id else 0
+            egf_num_games_played = egfdb.num_games_played(egf_id + EGF_OFFSET) if egf_id else 0
+            egf_last_game_played = egfdb.last_game_played(egf_id + EGF_OFFSET) if egf_id else 0
+
+            jan_2019 = 1546300800
+            #if aga and aga_last_game_played > 0:
+            if aga and aga_last_game_played > jan_2019 and aga_num_games_played > 5:
+                bins['aga'][aga].append(rank - aga)
+
+            #if egf and egf_last_game_played > 0:
+            if egf and egf_last_game_played > jan_2019 and egf_num_games_played > 5:
+                bins['egf'][egf].append(rank - egf)
+
+
+            for server in ['dgs', 'fox', 'kgs', 'igs', 'fox', 'yike', 'golem', 'tygem', 'goquest', 'wbaduk']:
+                if ('%s_rank' % server) in entry:
+                    server_rank = int(entry[('%s_rank' % server)])
+                    bins[server][server_rank].append(rank - server_rank)
+
+        ret = {}
+
+        for k in bins.keys():
+            ret[k] = []
+            for rank in range(0, 40):
+                if bins[k][rank]:
+                    ret[k].append(bins[k][rank])
+                else:
+                    ret[k].append([])
+
+        return ret
+
+
+    def get_self_reported_rating(self) -> Dict[str, Dict[int, List[float]]]:
+        datasets = datasets_used()
+
+        if not datasets["ogs"]:
+            return
+
+
+        if os.path.exists('./data'):
+            pathname = './data/'
+        elif os.path.exists('../data'):
+            pathname = '../data/'
+        else:
+            raise Exception('Failed to find data directory')
+
+        if os.path.exists(pathname + 'self_repoted_account_links.full.json'):
+            pathname += 'self_repoted_account_links.full.json'
+        elif os.path.exists(pathname + 'self_repoted_account_links.json'):
+            pathname = 'self_repoted_account_links.json'
+        else:
+            raise Exception('Failed to find self_repoted_account_links json file')
+
+
+        with open(pathname, 'r') as f:
+            stats = json.loads(f.read())
+
+        def get_org_rank(entry, org_country):
+            for org in ['org1', 'org2', 'org3']:
+                if org in entry and entry[org] == org_country:
+                    if org + '_rank' in entry:
+                        return entry[org + '_rank']
+            return None
+
+        def get_org_id(entry, org_country):
+            for org in ['org1', 'org2', 'org3']:
+                if org in entry and entry[org] == org_country:
+                    if org + '_id' in entry:
+                        try:
+                            return int(entry[org + '_id'])
+                        except:
+                            return None
+            return None
+
+        def date(timestamp) -> str:
+            return ctime(timestamp) if timestamp else ''
+
+
+        egf_count = 0
+        aga_count = 0
+
+        bins     = defaultdict(lambda: defaultdict(lambda: list()))
+
+        for e in stats:
+            id = e[0]
+            username = e[1]
+            entry = e[2]
+            player = self.storage.get(id)
+            rank = rating_to_rank(player.rating)
+            if player.rating == 1500:
+                continue
+
+            aga = get_org_rank(entry, 'us')
+            egf = get_org_rank(entry, 'eu')
+            aga_id = get_org_id(entry, 'us')
+            egf_id = get_org_id(entry, 'eu')
+
+            if (aga and aga > 100) or (egf and egf > 100):
+                continue # throwout pros for our purposes
+
+
+            aga_num_games_played = agadb.num_games_played(aga_id + AGA_OFFSET) if aga_id else 0
+            aga_last_game_played = agadb.last_game_played(aga_id + AGA_OFFSET) if aga_id else 0
+            egf_num_games_played = egfdb.num_games_played(egf_id + EGF_OFFSET) if egf_id else 0
+            egf_last_game_played = egfdb.last_game_played(egf_id + EGF_OFFSET) if egf_id else 0
+
+            jan_2019 = 1546300800
+            #if aga and aga_last_game_played > 0:
+            if aga and aga_last_game_played > jan_2019 and aga_num_games_played > 5:
+                bins['aga'][aga].append(player.rating)
+
+            #if egf and egf_last_game_played > 0:
+            if egf and egf_last_game_played > jan_2019 and egf_num_games_played > 5:
+                bins['egf'][egf].append(player.rating)
+
+
+            for server in ['dgs', 'fox', 'kgs', 'igs', 'fox', 'yike', 'golem', 'tygem', 'goquest', 'wbaduk']:
+                if ('%s_rank' % server) in entry:
+                    server_rank = int(entry[('%s_rank' % server)])
+                    bins[server][server_rank].append(player.rating)
+
+        ret = {}
+
+        for k in bins.keys():
+            ret[k] = []
+            for rank in range(0, 40):
+                if bins[k][rank]:
+                    ret[k].append(bins[k][rank])
+                else:
+                    ret[k].append([])
+
+        return ret
+
+
     def get_config(self) -> Any:
         ret: Dict[str, Any] = {}
 
@@ -306,8 +531,33 @@ class TallyGameAnalytics:
             lst.append(str(cfg["rating_config"]["c"]))
         if "m" in cfg["rating_config"]:
             lst.append(str(cfg["rating_config"]["m"]))
+        if "d" in cfg["rating_config"]:
+            lst.append(str(cfg["rating_config"]["d"]))
+        if "p" in cfg["rating_config"]:
+            lst.append(str(cfg["rating_config"]["p"]))
 
         return ":".join(lst)
+
+    def get_visualizer_data(self) -> Any:
+        obj: Any = {}
+
+        obj["name"] = self.get_descriptive_name()
+        obj["timestamp"] = time()
+        obj["black_wins"] = self.black_wins
+        obj["predictions"] = self.predictions
+        obj["count"] = self.count
+        obj["ignored"] = self.games_ignored
+        obj["config"] = self.get_config()
+
+        rank_distribution = [0 for x in range(40)]
+        for _id, player in self.storage.all_players().items():
+            rank = max(0, min(39, int(rating_to_rank(player.rating))))
+            rank_distribution[rank] += 1
+
+        obj["rank_distribution"] = rank_distribution
+        obj["org_stats"] = self.get_self_reported_stats()
+
+        return obj
 
     def update_visualizer_data(self) -> Any:
         fname: str = "data.json"
@@ -320,32 +570,19 @@ class TallyGameAnalytics:
             raise Exception("Can't find visualizer directory")
 
         data: Any = {}
+        obj = self.get_visualizer_data()
 
-        if os.path.exists(fname):
-            with open(fname, "r") as f:
-                data = json.load(f)
+        with FileLock(fname + ".lock"):
+            if os.path.exists(fname):
+                with open(fname, "r") as f:
+                    data = json.load(f)
 
-        obj: Any = {}
-        obj["name"] = self.get_descriptive_name()
-        obj["timestamp"] = time()
-        obj["black_wins"] = self.black_wins
-        obj["unexpected_rank_changes"] = self.unexpected_rank_changes
-        obj["predictions"] = self.predictions
-        obj["count"] = self.count
-        obj["ignored"] = self.games_ignored
-        obj["config"] = self.get_config()
+            data[obj["name"]] = obj
 
-        rank_distribution = [0 for x in range(40)]
-        for _id, player in self.storage.all_players().items():
-            rank = max(0, min(39, int(rating_to_rank(player.rating))))
-            rank_distribution[rank] += 1
+            with open(fname, "w") as f:
+                json.dump(data, f)
 
-        obj["rank_distribution"] = rank_distribution
-
-        data[obj["name"]] = obj
-
-        with open(fname, "w") as f:
-            json.dump(data, f)
+        return obj
 
 
 def num2rank(num: float) -> str:
