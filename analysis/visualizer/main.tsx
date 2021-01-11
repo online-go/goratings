@@ -230,17 +230,21 @@ function processDatasetByHandicap(name: string, sizes:Array<number>, speeds:Arra
     }
 
     let avg_winrate_by_handicap = 0;
+    let avg_sample_ct = 0;
 
     for (let handicap=0; handicap <= 9; handicap++) {
         if (ret.winrate_by_handicap[handicap].samples > 0) {
-            avg_winrate_by_handicap += ret.winrate_by_handicap[handicap].winrate;
+            if (handicap > 0) {
+                avg_winrate_by_handicap += ret.winrate_by_handicap[handicap].winrate;
+                avg_sample_ct += ret.winrate_by_handicap[handicap].samples;
+            }
             ret.winrate_by_handicap[handicap].winrate /= ret.winrate_by_handicap[handicap].samples;
         }
     }
 
     ret.info.num_samples = sample_total;
     ret.info.ignored = data[name].ignored;
-    ret.avg_winrate_by_handicap = avg_winrate_by_handicap / sample_total;
+    ret.avg_winrate_by_handicap = avg_winrate_by_handicap / avg_sample_ct;
 
     return ret;
 }
@@ -254,7 +258,6 @@ function getLatestDatasetName():string {
             last = data[name].timestamp;
         }
     }
-    console.log("Latset dataset: ", ret);
     return ret;
 }
 
@@ -307,8 +310,9 @@ function Main(props:{}):JSX.Element {
             handicaps: [],
         }));
     let selected_datasets = storageGet('selected_datasets', [getLatestDatasetName()]);
-    for (let name in selected_datasets) {
+    for (let name of selected_datasets) {
         if (!(name in data)) {
+            console.log("Failed to find", name, " in data set, resetting");
             selected_datasets = [getLatestDatasetName()];
             break;
         }
@@ -358,20 +362,65 @@ function Main(props:{}):JSX.Element {
                         size_speed_handicap.speeds,
                         size_speed_handicap.handicaps,
                         1,
-                    )
+                    );
+
                     let dataset_by_handicap = processDatasetByHandicap(
                         name,
                         size_speed_handicap.sizes,
                         size_speed_handicap.speeds,
                         [],
                         1,
-                    )
+                    );
+
+                    let insufficent_data = processDatasetByHandicap(
+                        name,
+                        size_speed_handicap.sizes,
+                        size_speed_handicap.speeds,
+                        [-1000],
+                        1,
+                    );
+
                     return (
                         <div className='Stats' key={name}>
                             <GeneralStats dataset={dataset_by_rank} />
+                            <hr/>
+
                             <WinRateByRank dataset={dataset_by_rank} />
+                            <hr/>
+
                             <RankDistribution dataset={data[name].rank_distribution} />
+                            <hr/>
+
+
                             <WinRateByHandicap dataset={dataset_by_handicap} />
+
+                            {[
+                                [35,36,37,38,39],
+                                [30,31,32,33,34],
+                                [25,26,27,28,29],
+                                [20,21,22,23,24],
+                                [15,16,17,18,19],
+                                [10,11,12,13,14],
+                                [5,6,7,8,9],
+                                [0,1,2,3,4],
+                             ].map((ranks, idx) => {
+                                let dataset_by_handicap = processDatasetByHandicap(
+                                    name,
+                                    size_speed_handicap.sizes,
+                                    size_speed_handicap.speeds,
+                                    ranks,
+                                    1,
+                                );
+
+
+                                return (
+                                    <div key={idx}>
+                                        <h3>{ranks.map(r => rankString(r)).join(",")}
+                                            : {humanNumber(dataset_by_handicap.info.num_samples)} samples</h3>
+                                        <WinRateByHandicap dataset={dataset_by_handicap.info.num_samples < 1000 ? insufficent_data : dataset_by_handicap} />
+                                    </div>
+                                );
+                             })}
                         </div>
                     );
                 })}
@@ -578,7 +627,7 @@ function WinRateByRank({dataset}:{dataset: DatasetByRank}):JSX.Element {
                         (e.samples / dataset.info.num_samples) > 0.01 || e.samples > 100 ? 0 : 100)
                     }
                     />
-                <ReferenceLine y={dataset.avg_winrate_by_rank * 100} stroke="blue" />
+                { /* <ReferenceLine y={dataset.avg_winrate_by_rank * 100} stroke="blue" /> */ }
                 <Line name="Predicted" type="monotone" dot={false} dataKey={(e => parseFloat((e.predicted * 100.0).toFixed(2)))} stroke="#cccccc" />
                 <Line name="Black win rate" type="monotone" dataKey={(e => parseFloat((e.winrate * 100.0).toFixed(2)))} stroke="#8884d8" />
             </ComposedChart>
