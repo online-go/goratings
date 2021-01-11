@@ -99,7 +99,7 @@ def glicko2_update(player: Glicko2Entry, matches: List[Tuple[Glicko2Entry, int]]
         v_sum += g_phi_j ** 2 * E * (1 - E)
         delta_sum += g_phi_j * (outcome - E)
 
-    v = 1.0 / v_sum
+    v = 1.0 / v_sum if v_sum else 9999
     delta = v * delta_sum
 
     # step 5
