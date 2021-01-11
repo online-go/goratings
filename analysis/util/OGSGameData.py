@@ -14,13 +14,17 @@ __all__ = ["OGSGameData"]
 class OGSGameData:
     _conn: sqlite3.Connection
     quiet: bool
+    size: int
+    speed: int
 
-    def __init__(self, sqlite_filename: str = "data/ogs-data.db", quiet: bool = False) -> None:
+    def __init__(self, sqlite_filename: str = "data/ogs-data.db", quiet: bool = False, size: int = 0, speed: int = 0) -> None:
         if not os.path.exists(sqlite_filename) and os.path.exists("../" + sqlite_filename):
             sqlite_filename = "../" + sqlite_filename
 
         self._conn = sqlite3.connect(sqlite_filename)
         self.quiet = quiet
+        self.size = size
+        self.speed = speed
 
     def __iter__(self) -> Iterator[GameRecord]:
         c = self._conn.cursor()
@@ -29,10 +33,23 @@ class OGSGameData:
         ct = 0
         num_records = 0
 
+        where = ""
+        if self.size or self.speed:
+            where = 'WHERE '
+            if self.size:
+                where += ' size = %d ' % self.size
+            if self.size and self.speed:
+                where += ' AND '
+            if self.speed:
+                if self.speed >= 3:
+                    where += ' (time_per_move = 0 OR time_per_move > 3600) '
+                else:
+                    where += ' (time_per_move > 0 AND time_per_move < 3600) '
+
         for row in c.execute(
             """
-                SELECT count(*) from game_records
-            """
+                SELECT count(*) from game_records %s
+            """ % where
         ):
             num_records = int(row[0])
             if limit < num_records:
@@ -53,10 +70,12 @@ class OGSGameData:
                     winner_id,
                     ended
                 FROM
-                    game_records ORDER BY ended
+                    game_records
+                %s
+                ORDER BY ended
                 LIMIT
                     ?
-            """,
+            """ % where,
             [limit],
         ):
             ct += 1
