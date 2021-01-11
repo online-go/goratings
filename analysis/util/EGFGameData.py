@@ -80,3 +80,27 @@ class EGFGameData:
             sys.stdout.write(f"\n{ct:n} games processed in {time_elapsed:.1f} seconds\n")
             sys.stdout.flush()
         c.close()
+
+
+    def last_game_played(self, player_id: int) -> float:
+        c = self._conn.cursor()
+        ret = 0
+        for row in c.execute('SELECT ended FROM game_records WHERE white_id = ? ORDER BY -ended LIMIT 1', [player_id]):
+            ret = max(ret, row[0])
+        for row in c.execute('SELECT ended FROM game_records WHERE black_id = ? ORDER BY -ended LIMIT 1', [player_id]):
+            ret = max(ret, row[0])
+        c.close()
+        return ret
+
+    def num_games_played(self, player_id: int) -> int:
+        c = self._conn.cursor()
+        ret = 0
+        for row in c.execute('SELECT count(*) FROM game_records WHERE black_id = ?', [player_id]):
+            ret += row[0]
+        for row in c.execute('SELECT count(*) FROM game_records WHERE white_id = ?', [player_id]):
+            ret += row[0]
+        c.close()
+        return ret
+
+
+
