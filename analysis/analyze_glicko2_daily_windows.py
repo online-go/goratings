@@ -84,7 +84,7 @@ class DailyWindows(RatingSystem):
             skipped=False,
             game=game,
             expected_win_rate=black_cur.expected_win_probability(
-                white_cur, get_handicap_adjustment(black_cur.rating, game.handicap)
+                white_cur, get_handicap_adjustment(black_cur.rating, game.handicap), ignore_g=True
             ),
             black_rating=black_cur.rating,
             white_rating=white_cur.rating,

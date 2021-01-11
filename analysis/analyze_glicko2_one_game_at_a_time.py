@@ -72,7 +72,7 @@ class OneGameAtATime(RatingSystem):
             skipped=False,
             game=game,
             expected_win_rate=black.expected_win_probability(
-                white, get_handicap_adjustment(black.rating, game.handicap)
+                white, get_handicap_adjustment(black.rating, game.handicap), ignore_g=True
             ),
             black_rating=black.rating,
             white_rating=white.rating,
