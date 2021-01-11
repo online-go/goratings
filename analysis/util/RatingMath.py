@@ -23,10 +23,17 @@ cli.add_argument(
     help="Use logarithmic, linear, or GoR ranking",
 )
 
-A = 850
-C = 32.25
+#A = 850
+#C = 32.25
+A = 478
+C = 12.9
 D = 0
 P = 1
+HALF_STONE_HANDICAP = False
+
+cli.add_argument(
+    "--half-stone-handicap", dest="half_stone_handicap", const=1, default=False, action="store_const", help="Use a 0.5 rank adjustment for hc1",
+)
 
 logarithmic = cli.add_argument_group(
     "logarithmic ranking variables", "rating to ranks converted with `(log(rating / a) ** p) * c + d`",
@@ -65,10 +72,10 @@ def set_exhaustive_log_parameters(a: float, c:float, d:float, p:float = 1.0) -> 
     P = p
 
 def get_handicap_adjustment(rating: float, handicap: int) -> float:
-    #return rank_to_rating(rating_to_rank(rating) + handicap) - rating
-
-    #return rank_to_rating(rating_to_rank(rating) + (handicap - 0.5 if handicap > 0 else 0)) - rating
-    return rank_to_rating(rating_to_rank(rating) + (0.5 if handicap == 1 else handicap)) - rating
+    global HALF_STONE_HANDICAP
+    if HALF_STONE_HANDICAP:
+        return rank_to_rating(rating_to_rank(rating) + (0.5 if handicap == 1 else handicap)) - rating
+    return rank_to_rating(rating_to_rank(rating) + handicap) - rating
 
 def set_optimizer_rating_points(points: List[float]) -> None:
     global optimizer_rating_control_points
@@ -81,7 +88,9 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     global A
     global C
     global D
+    global HALF_STONE_HANDICAP
 
+    HALF_STONE_HANDICAP = args.half_stone_handicap
     system: str = args.ranks
     a: float = args.a
     c: float = args.c
@@ -94,6 +103,7 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
         system = defaults["ranking"]
 
     rating_config["system"] = system
+
 
     if system == "linear":
 

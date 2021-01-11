@@ -44,7 +44,7 @@ class DailyWindows(RatingSystem):
         ## since we do not update deviation in periods without games, we have to do update it now if there are empty periods size the base rating was calclulated
         black_base_time = self._storage.get_first_timestamp_older_than(game.black_id, window)
         white_base_time = self._storage.get_first_timestamp_older_than(game.white_id, window)
-        
+
         if black_base_time is not None:
             black_base.expand_deviation_because_no_games_played(int((game.ended - black_base_time) / no_games_window_witdh))
         if white_base_time is not None:
@@ -85,7 +85,7 @@ class DailyWindows(RatingSystem):
         )
 
         ## limit rating changes by base RD * num games
-        # glicko2 is desinged to update ratings based on full rating periods. There is a natural lower bound of the RD 
+        # glicko2 is desinged to update ratings based on full rating periods. There is a natural lower bound of the RD
         # depending on the number of games in the period. If there are fewer games in a period the RD is higher which
         # results in bigger changes per game.
         # We calculate imemdiate ratings each time a game ends. So after a new rating period started the game pool is
@@ -134,7 +134,7 @@ class DailyWindows(RatingSystem):
 
 
 # Run
-config(cli.parse_args(), name="glicko2-glickman-1-week-window")
+config(cli.parse_args(), name="glicko2-week-window-reduce-rating-movement")
 ogs_game_data = GameData()
 storage = InMemoryStorage(Glicko2Entry)
 engine = DailyWindows(storage)
