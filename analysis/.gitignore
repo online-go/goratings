@@ -1,0 +1,15 @@
+*.db
+*.txt
+*.sh
+
+analyze_bayrate.py
+analyze_exhaustive.py
+analyze_exhaustivep.py
+candidate_search.py
+curve_optimizer.py
+eq_search.py
+eq_searchp.py
+exhaustive.py
+exhaustivep.py
+visualizer/rank.py
+Makefile
