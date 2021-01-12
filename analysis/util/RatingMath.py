@@ -26,7 +26,7 @@ cli.add_argument(
 #A = 850
 #C = 32.25
 A = 478
-C = 12.9
+C = 21.9
 D = 0
 P = 1
 HALF_STONE_HANDICAP = False
@@ -38,8 +38,8 @@ cli.add_argument(
 logarithmic = cli.add_argument_group(
     "logarithmic ranking variables", "rating to ranks converted with `(log(rating / a) ** p) * c + d`",
 )
-logarithmic.add_argument("-a", dest="a", type=float, default=850.0, help="a")
-logarithmic.add_argument("-c", dest="c", type=float, default=31.25, help="c")
+logarithmic.add_argument("-a", dest="a", type=float, default=478.0, help="a")
+logarithmic.add_argument("-c", dest="c", type=float, default=21.9, help="c")
 logarithmic.add_argument("-d", dest="d", type=float, default=0.0, help="d")
 logarithmic.add_argument("-p", dest="p", type=float, default=1.0, help="p")
 
