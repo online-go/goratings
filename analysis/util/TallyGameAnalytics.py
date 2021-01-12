@@ -53,8 +53,10 @@ class TallyGameAnalytics:
     count: ResultStorageType
     count_black_wins: ResultStorageType
     storage: InMemoryStorage
+    prefix: str
 
-    def __init__(self, storage: InMemoryStorage) -> None:
+    def __init__(self, storage: InMemoryStorage, prefix: str = '') -> None:
+        self.prefix = prefix
         self.games_ignored = 0
         self.storage = storage
         self.black_wins = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: 0))))
@@ -577,7 +579,7 @@ class TallyGameAnalytics:
         if "p" in cfg["rating_config"]:
             lst.append(str(cfg["rating_config"]["p"]))
 
-        return ":".join(lst)
+        return self.prefix + '-' + (":".join(lst))
 
     def get_visualizer_data(self) -> Any:
         obj: Any = {}
