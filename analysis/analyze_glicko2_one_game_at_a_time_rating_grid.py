@@ -2,6 +2,7 @@
 
 # Computes one game at a time, for all 16 speed / size combinations
 
+import configparser
 from analysis.util import (
     Glicko2Analytics,
     InMemoryStorage,
@@ -153,6 +154,25 @@ for speed in [999, 1, 2, 3]:
         k = '%d-%d' % (speed, size)
         print(">>>>>>>>>>>>>  %s  <<<<<<<<<<<<<" % k)
         tallies[k].print()
+
+fname = "players_to_inspect.ini"
+ini = configparser.ConfigParser()
+ini.optionxform = lambda s: s  # type: ignore
+ini.read(fname)
+for name in ini['ogs']:
+    id = int(ini['ogs'][name])
+    print('')
+    print('%s' % name)
+    for size in (999, 9, 13, 19):
+        line = ''
+        for speed in (999, 1, 2, 3):
+            k = '%d-%d' % (speed, size)
+            entry = storages[k].get(id)
+            line += '%.0f\t' % entry.rating
+        print(line)
+
+print('')
+
 
 self_reported_ratings = tallies['999-999'].get_self_reported_rating()
 if self_reported_ratings:
