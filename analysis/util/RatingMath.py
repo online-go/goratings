@@ -30,9 +30,13 @@ C = 21.9
 D = 0
 P = 1
 HALF_STONE_HANDICAP = False
+HALF_STONE_HANDICAP_FOR_ALL_RANKS = False
 
 cli.add_argument(
     "--half-stone-handicap", dest="half_stone_handicap", const=1, default=False, action="store_const", help="Use a 0.5 rank adjustment for hc1",
+)
+cli.add_argument(
+    "--half-stone-handicap-for-all-ranks", dest="half_stone_handicap_for_all_ranks", const=1, default=False, action="store_const", help="use rankdiff -0.5 for handicap",
 )
 
 logarithmic = cli.add_argument_group(
@@ -73,6 +77,9 @@ def set_exhaustive_log_parameters(a: float, c:float, d:float, p:float = 1.0) -> 
 
 def get_handicap_adjustment(rating: float, handicap: int) -> float:
     global HALF_STONE_HANDICAP
+    global HALF_STONE_HANDICAP_FOR_ALL_RANKS
+    if HALF_STONE_HANDICAP_FOR_ALL_RANKS:
+        return rank_to_rating(rating_to_rank(rating) + (handicap - 0.5 if handicap > 0 else 0)) - rating
     if HALF_STONE_HANDICAP:
         return rank_to_rating(rating_to_rank(rating) + (0.5 if handicap == 1 else handicap)) - rating
     return rank_to_rating(rating_to_rank(rating) + handicap) - rating
@@ -89,8 +96,10 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     global C
     global D
     global HALF_STONE_HANDICAP
+    global HALF_STONE_HANDICAP_FOR_ALL_RANKS
 
     HALF_STONE_HANDICAP = args.half_stone_handicap
+    HALF_STONE_HANDICAP_FOR_ALL_RANKS = args.half_stone_handicap_for_all_ranks
     system: str = args.ranks
     a: float = args.a
     c: float = args.c
