@@ -53,6 +53,11 @@ class InMemoryStorage(Storage):
     def add_match_history(self, player_id: int, timestamp: int, entry: Any) -> None:
         self._match_history[player_id].append((timestamp, entry))
 
+    def get_last_game_timestamp(self, player_id: int) -> int:
+        if player_id in self._rating_history:
+            return self._rating_history[player_id][-1][0]
+        return 0
+
     def get_first_rating_older_than(self, player_id: int, timestamp: int) -> Any:
         for e in reversed(self._rating_history[player_id]):
             if e[0] < timestamp:

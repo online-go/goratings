@@ -31,17 +31,24 @@ class OneGameAtATime(RatingSystem):
         ## Only count the first timeout in correspondence games as a ranked loss
         if game.timeout and game.speed == 3: # correspondence timeout
             player_that_timed_out = game.black_id if game.black_id != game.winner_id else game.white_id
+            other_player = game.black_id if game.black_id == game.winner_id else game.white_id
             skip = self._storage.get_timeout_flag(game.black_id) or self._storage.get_timeout_flag(game.white_id)
             self._storage.set_timeout_flag(player_that_timed_out, True)
+            self._storage.set_timeout_flag(other_player, False)
             if skip:
                 return Glicko2Analytics(skipped=True, game=game)
-        if game.speed == 3: # clear corr. timeout flags
-            self._storage.set_timeout_flag(game.black_id, True)
-            self._storage.set_timeout_flag(game.white_id, True)
+        elif game.speed == 3: # correspondence non timeout, clear flags for both
+            self._storage.set_timeout_flag(game.black_id, False)
+            self._storage.set_timeout_flag(game.white_id, False)
+
+        #if game.speed == 3: # clear corr. timeout flags
+        #    self._storage.set_timeout_flag(game.black_id, True)
+        #    self._storage.set_timeout_flag(game.white_id, True)
 
 
         black = self._storage.get(game.black_id)
         white = self._storage.get(game.white_id)
+
 
         updated_black = glicko2_update(
             black,
@@ -110,5 +117,6 @@ if self_reported_ratings:
     avg_1d_rating = sum(ratings_1d) / len(ratings_1d)
 
     print("Avg 1d rating egf: %6.1f    aga: %6.1f     egf+aga: %6.1f" % (avg_1d_egf, avg_1d_aga, avg_1d_rating))
+
 
 

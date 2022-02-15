@@ -55,11 +55,29 @@ class OGSGameData:
             if limit < num_records:
                 num_records = limit
 
+        NO_BAD_BOTS = True
+        join = ''
+        if NO_BAD_BOTS:
+            join =  ' LEFT JOIN players black_players ON black_id = black_players.id'
+            join += ' LEFT JOIN players white_players ON white_id = white_players.id'
+            if where != '':
+                where += ' AND '
+            else:
+                where = 'WHERE '
+            where += ' (black_players.is_bot = 0 OR black_players.id > 50000) '
+            where += ' AND (white_players.is_bot = 0 OR white_players.id > 50000) '
+            where += ' AND black_id != 82957 ' # randombot
+            where += ' AND white_id != 82957 ' # randombot
+            where += ' AND (black_players.is_bot != 1 OR timeout = 0)'
+            where += ' AND (white_players.is_bot != 1 OR timeout = 0)'
+
+
+
         started = time()
         for row in c.execute(
             """
                 SELECT
-                    id,
+                    game_records.id,
                     size,
                     handicap,
                     komi,
@@ -72,10 +90,11 @@ class OGSGameData:
                 FROM
                     game_records
                 %s
+                %s
                 ORDER BY ended
                 LIMIT
                     ?
-            """ % where,
+            """ % (join, where),
             [limit],
         ):
             ct += 1

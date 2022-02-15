@@ -31,7 +31,7 @@ EGF_OFFSET = 1000000000
 AGA_OFFSET = 2000000000
 LAST_ORG_GAME_PLAYED_CUTOFF = 1559347200 # 2019-06-01
 MIN_ORG_GAMES_PLAYED_CUTOFF = 6
-PROVISIONAL_DEVIATION_CUTOFF = 660
+PROVISIONAL_DEVIATION_CUTOFF = 100
 
 
 # Result storage is indexed by size, speed, rank, handicap
@@ -288,13 +288,13 @@ class TallyGameAnalytics:
         print('')
         print('')
 
-        BAND_WIDTH = 5
+        BAND_WIDTH = 3
 
         header   = '                '
         line = defaultdict(lambda: '')
 
         for band in range(0, 40, BAND_WIDTH):
-            header += '%-4s - %-4s\t' % (num2rank(band), num2rank(band + 4))
+            header += '%-4s - %-4s\t' % (num2rank(band), num2rank(band + (BAND_WIDTH - 1)))
         for key in stats.keys():
             line[key] = '%8s [%3d]:\t' % (key, len([item for sublist in stats[key] for item in sublist]))
 
@@ -303,13 +303,17 @@ class TallyGameAnalytics:
                 if len(flat):
                     avg = mean(flat)
                     size = len(flat)
-                    line[key] += '%2.1f [%2d] \t' % (avg, size)
+                    line[key] += '%4.1f [%2d] \t' % (avg, size)
                 else:
                     line[key] += '            \t'
 
         print(header)
         for key in stats.keys():
             print(line[key])
+
+
+
+
 
 
 

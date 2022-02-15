@@ -41,14 +41,10 @@ COPY (SELECT
 ) TO '/tmp/games.csv' WITH CSV DELIMITER ';';
 
 COPY (SELECT
-    id,
-    username,
-    date_joined,
     rating,
-    deviation,
-    is_bot
+    deviation
     FROM go_app_player
-) TO '/tmp/players.csv' WITH CSV DELIMITER ';';
+) TO '/tmp/ratings.csv' WITH CSV DELIMITER ';';
 """
 
 
