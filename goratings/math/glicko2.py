@@ -133,7 +133,7 @@ def glicko2_update(player: Glicko2Entry, matches: List[Tuple[Glicko2Entry, int]]
     while abs(B - A) > EPSILON and safety > 0:
         C = A + (A - B) * fA / (fB - fA)
         fC = f(C)
-        if fC * fB < 0:
+        if fC * fB <= 0:
             A = B
             fA = fB
         else:
