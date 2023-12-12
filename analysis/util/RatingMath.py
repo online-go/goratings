@@ -33,12 +33,24 @@ D = 0
 P = 1
 HALF_STONE_HANDICAP = False
 HALF_STONE_HANDICAP_FOR_ALL_RANKS = False
+COMPUTE_HANDICAP_VIA_KOMI_SMALL = False
+COMPUTE_HANDICAP_VIA_KOMI_19X19 = False
 
 cli.add_argument(
     "--half-stone-handicap", dest="half_stone_handicap", const=1, default=False, action="store_const", help="Use a 0.5 rank adjustment for hc1",
 )
 cli.add_argument(
     "--half-stone-handicap-for-all-ranks", dest="half_stone_handicap_for_all_ranks", const=1, default=False, action="store_const", help="use rankdiff -0.5 for handicap",
+)
+cli.add_argument(
+    "--compute-handicap-via-komi-small",
+    dest="compute_handicap_via_komi_small", const=1, default=False, action="store_const",
+    help="compute effective handicap from komi for small boards",
+)
+cli.add_argument(
+    "--compute-handicap-via-komi-19x19",
+    dest="compute_handicap_via_komi_19x19", const=1, default=False, action="store_const",
+    help="compute effective handicap from komi for 19x19 boards",
 )
 
 logarithmic = cli.add_argument_group(
@@ -77,14 +89,59 @@ def set_exhaustive_log_parameters(a: float, c:float, d:float, p:float = 1.0) -> 
     D = d
     P = p
 
-def get_handicap_adjustment(rating: float, handicap: int) -> float:
+
+def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: str) -> float:
     global HALF_STONE_HANDICAP
     global HALF_STONE_HANDICAP_FOR_ALL_RANKS
+    global COMPUTE_HANDICAP_VIA_KOMI_SMALL
+    global COMPUTE_HANDICAP_VIA_KOMI_19X19
+
+    if (COMPUTE_HANDICAP_VIA_KOMI_19X19 and size == 19) or (COMPUTE_HANDICAP_VIA_KOMI_SMALL and size != 19):
+        # Use a "even game komi" that allows for draws for computing ratings.
+        # It's okay to expect a draw.
+        stone_value = 12
+        if rules == "japanese" or rules == "korean":
+            # Territory scoring.
+            area_bonus = 0
+            komi_bonus = 0
+        else:
+            # Bonus for the area value of a stone in area scoring.
+            area_bonus = 1
+
+            # Chinese and AGA rules add extra komi when there's a handicap but
+            # don't store it in the 'komi' field.
+            if rules == "chinese":
+                komi_bonus = 1 * handicap
+            elif rules == "aga":
+                komi_bonus = 1 * (handicap - 1) if handicap else 0
+            else:
+                komi_bonus = 0
+
+        # Convert the handicap into an equivalent komi, and subtract it from
+        # the komi for an even game.
+        handicap_as_komi = ((stone_value / 2 + area_bonus) - (komi + komi_bonus) +
+                            ((stone_value + area_bonus) * handicap if handicap > 1 else 0))
+
+        # Convert back to a fractional handicap, using scaling factors of 3x
+        # and 6x for 9x9 and 13x13.
+        if size == 9:
+            return handicap_as_komi * 6 / stone_value
+        if size == 13:
+            return handicap_as_komi * 3 / stone_value
+        return handicap_as_komi / stone_value
+
     if HALF_STONE_HANDICAP_FOR_ALL_RANKS:
-        return rank_to_rating(rating_to_rank(rating) + (handicap - 0.5 if handicap > 0 else 0)) - rating
+        return handicap - 0.5 if handicap > 0 else 0
     if HALF_STONE_HANDICAP:
-        return rank_to_rating(rating_to_rank(rating) + (0.5 if handicap == 1 else handicap)) - rating
-    return rank_to_rating(rating_to_rank(rating) + handicap) - rating
+        return 0.5 if handicap == 1 else handicap
+    return handicap
+
+
+def get_handicap_adjustment(rating: float, handicap: int, size: int, komi: float, rules: str) -> float:
+    rank_difference = get_handicap_rank_difference(handicap, size, komi, rules)
+    effective_rank = min(39, max(0, rating_to_rank(rating) + rank_difference))
+    return rank_to_rating(effective_rank) - rating
+
 
 def set_optimizer_rating_points(points: List[float]) -> None:
     global optimizer_rating_control_points
@@ -99,9 +156,13 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     global D
     global HALF_STONE_HANDICAP
     global HALF_STONE_HANDICAP_FOR_ALL_RANKS
+    global COMPUTE_HANDICAP_VIA_KOMI_SMALL
+    global COMPUTE_HANDICAP_VIA_KOMI_19X19
 
     HALF_STONE_HANDICAP = args.half_stone_handicap
     HALF_STONE_HANDICAP_FOR_ALL_RANKS = args.half_stone_handicap_for_all_ranks
+    COMPUTE_HANDICAP_VIA_KOMI_SMALL = args.compute_handicap_via_komi_small
+    COMPUTE_HANDICAP_VIA_KOMI_19X19 = args.compute_handicap_via_komi_19x19
     system: str = args.ranks
     a: float = args.a
     c: float = args.c
@@ -260,7 +321,9 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     else:
         raise NotImplementedError
 
-    assert round(get_handicap_adjustment(1000.0, 0), 8) == 0
+    for size in [9, 13, 19]:
+        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="japanese", komi=6), 8) == 0
+        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="aga", komi=7), 8) == 0
 
 
 def lerp(x:float, y:float, a:float):

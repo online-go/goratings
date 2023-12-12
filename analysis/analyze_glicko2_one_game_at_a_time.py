@@ -49,12 +49,14 @@ class OneGameAtATime(RatingSystem):
         black = self._storage.get(game.black_id)
         white = self._storage.get(game.white_id)
 
-
         updated_black = glicko2_update(
             black,
             [
                 (
-                    white.copy(-get_handicap_adjustment(white.rating, game.handicap)),
+                    white.copy(-get_handicap_adjustment(white.rating, game.handicap,
+                                                        komi=game.komi, size=game.size,
+                                                        rules=game.rules,
+                            )),
                     game.winner_id == game.black_id,
                 )
             ],
@@ -64,7 +66,10 @@ class OneGameAtATime(RatingSystem):
             white,
             [
                 (
-                    black.copy(get_handicap_adjustment(black.rating, game.handicap)),
+                    black.copy(get_handicap_adjustment(black.rating, game.handicap,
+                                                       komi=game.komi, size=game.size,
+                                                       rules=game.rules,
+                            )),
                     game.winner_id == game.white_id,
                 )
             ],
@@ -79,7 +84,10 @@ class OneGameAtATime(RatingSystem):
             skipped=False,
             game=game,
             expected_win_rate=black.expected_win_probability(
-                white, get_handicap_adjustment(black.rating, game.handicap), ignore_g=True
+                white, get_handicap_adjustment(black.rating, game.handicap,
+                                               komi=game.komi, size=game.size,
+                                               rules=game.rules,
+                    ), ignore_g=True
             ),
             black_rating=black.rating,
             white_rating=white.rating,
