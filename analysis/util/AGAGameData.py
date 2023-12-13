@@ -70,9 +70,11 @@ class AGAGameData:
                 sys.stdout.flush()
 
             handicap = row[2]
+            rules = "aga"
             komi = 0.5 if handicap else 7.5
             yield GameRecord(
                 row[0], row[1], handicap, komi, row[4], row[5], row[6], row[7], row[8], row[9],
+                rules,
             )
 
         if not self.quiet:
