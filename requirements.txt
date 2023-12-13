@@ -4,3 +4,4 @@ scipy
 numpy
 pygsl
 filelock
+python-dateutil
