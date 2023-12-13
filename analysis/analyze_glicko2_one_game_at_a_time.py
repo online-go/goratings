@@ -8,6 +8,7 @@ from analysis.util import (
     cli,
     config,
     get_handicap_adjustment,
+    get_handicap_rank_difference,
     rating_to_rank,
     rank_to_rating,
 )
@@ -48,6 +49,15 @@ class OneGameAtATime(RatingSystem):
 
         black = self._storage.get(game.black_id)
         white = self._storage.get(game.white_id)
+
+        # Skip games with effective handicap > 9.
+        #
+        # FIXME: Should be in all analysis scripts, not just this one. Can we
+        # centralize somehow?
+        if get_handicap_rank_difference(
+                handicap=game.handicap, size=game.size,
+                komi=game.komi, rules=game.rules) > 9:
+            return Glicko2Analytics(skipped=True, game=game)
 
         updated_black = glicko2_update(
             black,
