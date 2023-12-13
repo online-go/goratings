@@ -72,9 +72,12 @@ class EGFGameData:
                 sys.stdout.flush()
 
             handicap = row[2]
+            rules = "japanese", # best guess
             komi = 0.5 if handicap else 6.5
             yield GameRecord(
-                row[0], row[1], handicap, komi, row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11],
+                row[0], row[1], handicap, komi, row[4], row[5], row[6], row[7], row[8], row[9],
+                rules,
+                row[10], row[11],
             )
 
         if not self.quiet:
