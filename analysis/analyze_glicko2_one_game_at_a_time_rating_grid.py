@@ -13,6 +13,7 @@ from analysis.util import (
     get_handicap_adjustment,
     rating_to_rank,
     rank_to_rating,
+    should_skip_game,
 )
 from goratings.interfaces import GameRecord, RatingSystem, Storage
 from goratings.math.glicko2 import Glicko2Entry, glicko2_update
@@ -45,17 +46,9 @@ class OneGameAtATimeRatingGrid(RatingSystem):
                 if game.white_manual_rank_update is not None:
                     storage.set(game.white_id, Glicko2Entry(rank_to_rating(game.white_manual_rank_update)))
 
-                ## Only count the first timeout in correspondence games as a ranked loss
-                if game.timeout and game.speed == 3: # correspondence timeout
-                    player_that_timed_out = game.black_id if game.black_id != game.winner_id else game.white_id
-                    skip = storage.get_timeout_flag(game.black_id) or storage.get_timeout_flag(game.white_id)
-                    storage.set_timeout_flag(player_that_timed_out, True)
-                    if skip:
-                         ret[k] =Glicko2Analytics(skipped=True, game=game)
-                         continue
-                if game.speed == 3: # clear corr. timeout flags
-                    storage.set_timeout_flag(game.black_id, True)
-                    storage.set_timeout_flag(game.white_id, True)
+                if should_skip_game(game, storage):
+                    ret[k] = Glicko2Analytics(skipped=True, game=game)
+                    continue
 
                 black = storage.get(game.black_id)
                 white = storage.get(game.white_id)

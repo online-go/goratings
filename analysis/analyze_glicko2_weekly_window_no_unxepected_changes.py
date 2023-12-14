@@ -9,6 +9,7 @@ from analysis.util import (
     config,
     get_handicap_adjustment,
     rating_to_rank,
+    should_skip_game,
 )
 from goratings.interfaces import GameRecord, RatingSystem, Storage
 from goratings.math.glicko2 import Glicko2Entry, glicko2_update
@@ -23,16 +24,8 @@ class DailyWindows(RatingSystem):
         self._storage = storage
 
     def process_game(self, game: GameRecord) -> Glicko2Analytics:
-        ## Only count the first timeout in correspondence games as a ranked loss
-        if game.timeout and game.speed == 3: # correspondence timeout
-            player_that_timed_out = game.black_id if game.black_id != game.winner_id else game.white_id
-            skip = self._storage.get_timeout_flag(game.black_id) or self._storage.get_timeout_flag(game.white_id)
-            self._storage.set_timeout_flag(player_that_timed_out, True)
-            if skip:
-                return Glicko2Analytics(skipped=True, game=game)
-        if game.speed == 3: # clear corr. timeout flags
-            self._storage.set_timeout_flag(game.black_id, True)
-            self._storage.set_timeout_flag(game.white_id, True)
+        if should_skip_game(game, self._storage):
+            return Glicko2Analytics(skipped=True, game=game)
 
         ## read base rating (last rating before the current rating period)
         window = (int(game.ended) // window_width) * window_width

@@ -10,6 +10,7 @@ from analysis.util import (
     get_handicap_adjustment,
     rating_to_rank,
     rank_to_rating,
+    should_skip_game,
 )
 from goratings.interfaces import GameRecord, RatingSystem, Storage
 from goratings.math.glicko2 import Glicko2Entry, glicko2_update
@@ -28,23 +29,8 @@ class OneGameAtATime(RatingSystem):
         if game.white_manual_rank_update is not None:
             self._storage.set(game.white_id, Glicko2Entry(rank_to_rating(game.white_manual_rank_update)))
 
-        ## Only count the first timeout in correspondence games as a ranked loss
-        if game.timeout and game.speed == 3: # correspondence timeout
-            player_that_timed_out = game.black_id if game.black_id != game.winner_id else game.white_id
-            other_player = game.black_id if game.black_id == game.winner_id else game.white_id
-            skip = self._storage.get_timeout_flag(game.black_id) or self._storage.get_timeout_flag(game.white_id)
-            self._storage.set_timeout_flag(player_that_timed_out, True)
-            self._storage.set_timeout_flag(other_player, False)
-            if skip:
-                return Glicko2Analytics(skipped=True, game=game)
-        elif game.speed == 3: # correspondence non timeout, clear flags for both
-            self._storage.set_timeout_flag(game.black_id, False)
-            self._storage.set_timeout_flag(game.white_id, False)
-
-        #if game.speed == 3: # clear corr. timeout flags
-        #    self._storage.set_timeout_flag(game.black_id, True)
-        #    self._storage.set_timeout_flag(game.white_id, True)
-
+        if should_skip_game(game, self._storage):
+            return Glicko2Analytics(skipped=True, game=game)
 
         black = self._storage.get(game.black_id)
         white = self._storage.get(game.white_id)
