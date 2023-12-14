@@ -1,4 +1,4 @@
-#!/usr/bin/env pypy3
+#!/usr/bin/env python3
 
 import csv
 import gzip
@@ -41,10 +41,13 @@ COPY (SELECT
 ) TO '/tmp/games.csv' WITH CSV DELIMITER ';';
 
 COPY (SELECT
-    rating,
-    deviation
+    id,
+    username,
+    date_joined,
+    v5_ratings,
+    is_bot
     FROM go_app_player
-) TO '/tmp/ratings.csv' WITH CSV DELIMITER ';';
+) TO '/tmp/players.csv' WITH CSV DELIMITER ';';
 """
 
 
@@ -57,6 +60,7 @@ c.execute(
     CREATE TABLE IF NOT EXISTS game_records
     (
         id INTEGER PRIMARY KEY,
+        rules TEXT,
         size INTEGER,
         handicap INTEGER,
         komi REAL,
@@ -118,6 +122,40 @@ def computeAverageMoveTime(time_control, old_time_per_move):
 
 
 ##
+## Import players
+##
+ct = 0
+with gzip.open("players.csv.gz", "rt") as players_f:
+    players_csv = csv.reader(players_f, delimiter=";")
+    for row in players_csv:
+        ct += 1
+        if ct % 100 == 0:
+            sys.stdout.write("%d\r" % ct)
+            sys.stdout.flush()
+
+        c.execute(
+            """
+            INSERT INTO players
+                (
+                    id,
+                    date_joined,
+                    is_bot
+                )
+            VALUES
+                (
+                    ?,
+                    ?,
+                    ?
+                )
+        """,
+            (
+                int(row[0]),
+                parser.parse(row[2]).timestamp(),
+                row[4] == "t",
+            ),
+        )
+
+##
 ## Import games
 ##
 
@@ -159,6 +197,7 @@ with gzip.open("games.csv.gz", "rt") as games_f:
             INSERT INTO game_records
                 (
                     id,
+                    rules,
                     size,
                     handicap,
                     komi,
@@ -170,10 +209,11 @@ with gzip.open("games.csv.gz", "rt") as games_f:
                     ended
                 )
             VALUES
-                ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 id,
+                rules,
                 # ladder_id,
                 # tournament_id,
                 size,
@@ -183,7 +223,6 @@ with gzip.open("games.csv.gz", "rt") as games_f:
                 white_id,
                 time_per_move,
                 # time_control_parameters,
-                # rules,
                 timeout,
                 winner_id,
                 # outcome,
@@ -193,39 +232,6 @@ with gzip.open("games.csv.gz", "rt") as games_f:
         )
 
 
-##
-## Import players
-##
-ct = 0
-with gzip.open("players.csv.gz", "rt") as players_f:
-    players_csv = csv.reader(players_f, delimiter=";")
-    for row in players_csv:
-        ct += 1
-        if ct % 100 == 0:
-            sys.stdout.write("%d\r" % ct)
-            sys.stdout.flush()
-
-        c.execute(
-            """
-            INSERT INTO players
-                (
-                    id,
-                    date_joined,
-                    is_bot
-                )
-            VALUES
-                (
-                    ?,
-                    ?,
-                    ?
-                )
-        """,
-            (
-                int(row[0]),
-                parser.parse(row[2]).timestamp(),
-                row[5] == "t",
-            ),
-        )
 
 
 c.execute(
