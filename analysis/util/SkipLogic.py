@@ -12,7 +12,7 @@ def should_skip_game(game: GameRecord, storage: Storage) -> bool:
     if game.timeout and game.speed == 3: # correspondence timeout
         player_that_timed_out = game.black_id if game.black_id != game.winner_id else game.white_id
         other_player = game.black_id if game.black_id == game.winner_id else game.white_id
-        skip = storage.get_timeout_flag(game.black_id) or self._storage.get_timeout_flag(game.white_id)
+        skip = storage.get_timeout_flag(game.black_id) or storage.get_timeout_flag(game.white_id)
         storage.set_timeout_flag(player_that_timed_out, True)
         storage.set_timeout_flag(other_player, False)
         if skip:

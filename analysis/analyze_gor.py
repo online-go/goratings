@@ -29,12 +29,12 @@ class OneGameAtATime(RatingSystem):
 
     def process_game(self, game: GameRecord) -> GorAnalytics:
         if game.black_manual_rank_update is not None:
-            storage.clear_set_count(game.black_id)
-            storage.set(game.black_id, GorEntry(rank_to_rating(game.black_manual_rank_update)))
+            self._storage.clear_set_count(game.black_id)
+            self._storage.set(game.black_id, GorEntry(rank_to_rating(game.black_manual_rank_update)))
 
         if game.white_manual_rank_update is not None:
-            storage.clear_set_count(game.white_id)
-            storage.set(game.white_id, GorEntry(rank_to_rating(game.white_manual_rank_update)))
+            self._storage.clear_set_count(game.white_id)
+            self._storage.set(game.white_id, GorEntry(rank_to_rating(game.white_manual_rank_update)))
 
         if should_skip_game(game, self._storage):
             return GorAnalytics(skipped=True, game=game)
