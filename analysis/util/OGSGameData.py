@@ -86,7 +86,8 @@ class OGSGameData:
                     time_per_move,
                     timeout,
                     winner_id,
-                    ended
+                    ended,
+                    rules
                 FROM
                     game_records
                 %s
@@ -107,8 +108,24 @@ class OGSGameData:
                 )
                 sys.stdout.flush()
 
+            # Clean the rules field.
+            if row[10] in ["aga", "chinese", "ing", "japanese", "korean", "nz"]:
+                rules = row[10]
+            elif row[10] == "Japanese":
+                rules = "japanese"
+            elif row[10] == "age":
+                rules = "aga"
+            elif row[10] == "ing sst":
+                rules = "ing"
+            elif row[10] == "ogs":
+                rules = "japanese"
+            else:
+                # Report new, unknown, rules spellings so we can clean them properly.
+                raise Exception("Unknown rules: '" + row[10] + "'")
+
             yield GameRecord(
                 row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+                rules,
             )
 
         if not self.quiet:

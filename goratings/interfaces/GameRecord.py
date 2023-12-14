@@ -14,6 +14,7 @@ class GameRecord:
     timeout: bool
     winner_id: int
     ended: int  # timestamp, seconds since epoch
+    rules: str
     black_manual_rank_update: Optional[int]  #
     white_manual_rank_update: Optional[int]  #
 
@@ -29,6 +30,7 @@ class GameRecord:
         timeout: bool,
         winner_id: int,
         ended: int,
+        rules: str,
         black_manual_rank_update: Optional[int] = None,
         white_manual_rank_update: Optional[int] = None,
     ):
@@ -42,6 +44,7 @@ class GameRecord:
         self.timeout = timeout
         self.winner_id = winner_id
         self.ended = ended
+        self.rules = rules
         self.black_manual_rank_update = black_manual_rank_update
         self.white_manual_rank_update = white_manual_rank_update
 
