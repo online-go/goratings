@@ -11,6 +11,7 @@ from analysis.util import (
     get_handicap_adjustment,
     rating_to_rank,
     rank_to_rating,
+    should_skip_game,
 )
 from goratings.interfaces import GameRecord, RatingSystem, Storage
 from goratings.math.gor import GorEntry, gor_update
@@ -35,17 +36,8 @@ class OneGameAtATime(RatingSystem):
             self._storage.clear_set_count(game.white_id)
             self._storage.set(game.white_id, GorEntry(rank_to_rating(game.white_manual_rank_update)))
 
-        ## Only count the first timeout in correspondence games as a ranked loss
-        if game.timeout and game.speed == 3: # correspondence timeout
-            player_that_timed_out = game.black_id if game.black_id != game.winner_id else game.white_id
-            skip = self._storage.get_timeout_flag(game.black_id) or self._storage.get_timeout_flag(game.white_id)
-            self._storage.set_timeout_flag(player_that_timed_out, True)
-            if skip:
-                return GorAnalytics(skipped=True, game=game)
-        if game.speed == 3: # clear corr. timeout flags
-            self._storage.set_timeout_flag(game.black_id, True)
-            self._storage.set_timeout_flag(game.white_id, True)
-
+        if should_skip_game(game, self._storage):
+            return GorAnalytics(skipped=True, game=game)
 
         black = self._storage.get(game.black_id)
         white = self._storage.get(game.white_id)
