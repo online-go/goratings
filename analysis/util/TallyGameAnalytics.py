@@ -142,16 +142,16 @@ class TallyGameAnalytics:
 
     def print_compact_stats(self) -> None:
         prediction = (
-            self.prediction_cost[19][ALL][ALL][ALL] / max(1, self.count[19][ALL][ALL][ALL])
+            self.prediction_cost[ALL][ALL][ALL][ALL] / max(1, self.count[ALL][ALL][ALL][ALL])
         )
         prediction_h0 = (
-            self.prediction_cost[19][ALL][ALL][0] / max(1, self.count[19][ALL][ALL][0])
+            self.prediction_cost[ALL][ALL][ALL][0] / max(1, self.count[ALL][ALL][ALL][0])
         )
         prediction_h1 = (
-            self.prediction_cost[19][ALL][ALL][1] / max(1, self.count[19][ALL][ALL][1])
+            self.prediction_cost[ALL][ALL][ALL][1] / max(1, self.count[ALL][ALL][ALL][1])
         )
         prediction_h2 = (
-            self.prediction_cost[19][ALL][ALL][2] / max(1, self.count[19][ALL][ALL][2])
+            self.prediction_cost[ALL][ALL][ALL][2] / max(1, self.count[ALL][ALL][ALL][2])
         )
 
         #unexp_change = (
