@@ -133,3 +133,5 @@ dmypy.json
 *.csv.gz
 *.db-journal
 data/scripts/*.db
+
+.*.sw?
