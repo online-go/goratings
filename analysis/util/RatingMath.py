@@ -98,9 +98,12 @@ def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: s
     global COMPUTE_HANDICAP_VIA_KOMI_19X19
 
     if (COMPUTE_HANDICAP_VIA_KOMI_19X19 and size == 19) or (COMPUTE_HANDICAP_VIA_KOMI_SMALL and size != 19):
-        # Use a "even game komi" that allows for draws for computing ratings.
-        # It's okay to expect a draw.
+        # The territorial value of a free stone.
         stone_value = 12
+
+        # Number of extra moves black makes before white responds.
+        num_extra_moves = handicap - 1 if handicap > 1 else 0
+
         if rules == "japanese" or rules == "korean":
             # Territory scoring.
             area_bonus = 0
@@ -114,22 +117,25 @@ def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: s
             if rules == "chinese":
                 komi_bonus = 1 * handicap
             elif rules == "aga":
-                komi_bonus = 1 * (handicap - 1) if handicap else 0
+                komi_bonus = 1 * num_extra_moves
             else:
                 komi_bonus = 0
 
-        # Convert the handicap into an equivalent komi, and subtract it from
-        # the komi for an even game.
-        handicap_as_komi = ((stone_value / 2 + area_bonus) - (komi + komi_bonus) +
-                            ((stone_value + area_bonus) * handicap if handicap > 1 else 0))
+        # Figure out the point value of black's head start, if any, by
+        # subtracting the actual komi from the fair komi for an even game, and
+        # adding the point value of any extra moves.
+        fair_komi = stone_value / 2 + area_bonus + 0.5
+        actual_komi = komi + komi_bonus
+        value_extra_moves = (stone_value + area_bonus) * num_extra_moves
+        head_start = fair_komi - actual_komi + value_extra_moves
 
         # Convert back to a fractional handicap, using scaling factors of 3x
         # and 6x for 9x9 and 13x13.
         if size == 9:
-            return handicap_as_komi * 6 / stone_value
+            return head_start * 6 / stone_value
         if size == 13:
-            return handicap_as_komi * 3 / stone_value
-        return handicap_as_komi / stone_value
+            return head_start * 3 / stone_value
+        return head_start / stone_value
 
     if HALF_STONE_HANDICAP_FOR_ALL_RANKS:
         return handicap - 0.5 if handicap > 0 else 0
@@ -141,6 +147,7 @@ def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: s
 def get_handicap_adjustment(rating: float, handicap: int, size: int, komi: float, rules: str) -> float:
     rank_difference = get_handicap_rank_difference(handicap, size, komi, rules)
     effective_rank = min(39, max(0, rating_to_rank(rating) + rank_difference))
+    effective_rank = rating_to_rank(rating)
     return rank_to_rating(effective_rank) - rating
 
 
@@ -323,8 +330,8 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
         raise NotImplementedError
 
     for size in [9, 13, 19]:
-        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="japanese", komi=6), 8) == 0
-        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="aga", komi=7), 8) == 0
+        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="japanese", komi=6.5), 8) == 0
+        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="aga", komi=7.5), 8) == 0
 
 
 def lerp(x:float, y:float, a:float):
