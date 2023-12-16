@@ -50,7 +50,9 @@ class DailyWindows(RatingSystem):
             black_base,
             [
                 (
-                    opponent.copy((1 if past_game.black_id != game.black_id else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap)),
+                    opponent.copy((1 if past_game.black_id != game.black_id else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap,
+                            komi=past_game.komi, size=past_game.size, rules=past_game.rules,
+                            )),
                     past_game.winner_id == past_game.black_id
                 )
                 for past_game, opponent in self._storage.get_matches_newer_or_equal_to(
@@ -63,7 +65,9 @@ class DailyWindows(RatingSystem):
             white_base,
             [
                 (
-                    opponent.copy((1 if past_game.black_id != game.white_id else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap)),
+                    opponent.copy((1 if past_game.black_id != game.white_id else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap,
+                            komi=past_game.komi, size=past_game.size, rules=past_game.rules,
+                            )),
                     past_game.winner_id == past_game.white_id
                 )
                 for past_game, opponent in self._storage.get_matches_newer_or_equal_to(
@@ -96,7 +100,9 @@ class DailyWindows(RatingSystem):
             skipped=False,
             game=game,
             expected_win_rate=black_cur.expected_win_probability(
-                white_cur, get_handicap_adjustment(black_cur.rating, game.handicap), ignore_g=True
+                white_cur, get_handicap_adjustment(black_cur.rating, game.handicap,
+                    komi=game.komi, size=game.size, rules=game.rules,
+                    ), ignore_g=True
             ),
             black_rating=black_cur.rating,
             white_rating=white_cur.rating,

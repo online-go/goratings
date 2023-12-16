@@ -33,12 +33,24 @@ D = 0
 P = 1
 HALF_STONE_HANDICAP = False
 HALF_STONE_HANDICAP_FOR_ALL_RANKS = False
+HANDICAP_RANK_DIFFERENCE_SMALL = False
+HANDICAP_RANK_DIFFERENCE_19X19 = False
 
 cli.add_argument(
     "--half-stone-handicap", dest="half_stone_handicap", const=1, default=False, action="store_const", help="Use a 0.5 rank adjustment for hc1",
 )
 cli.add_argument(
     "--half-stone-handicap-for-all-ranks", dest="half_stone_handicap_for_all_ranks", const=1, default=False, action="store_const", help="use rankdiff -0.5 for handicap",
+)
+cli.add_argument(
+    "--handicap-rank-difference-small",
+    dest="handicap_rank_difference_small", const=1, default=False, action="store_const",
+    help="compute effective handicap rank difference with komi for small boards",
+)
+cli.add_argument(
+    "--handicap-rank-difference-19x19",
+    dest="handicap_rank_difference_19x19", const=1, default=False, action="store_const",
+    help="compute effective handicap rank difference with komi for 19x19 boards",
 )
 
 logarithmic = cli.add_argument_group(
@@ -77,14 +89,65 @@ def set_exhaustive_log_parameters(a: float, c:float, d:float, p:float = 1.0) -> 
     D = d
     P = p
 
-def get_handicap_adjustment(rating: float, handicap: int) -> float:
+
+def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: str) -> float:
     global HALF_STONE_HANDICAP
     global HALF_STONE_HANDICAP_FOR_ALL_RANKS
+    global HANDICAP_RANK_DIFFERENCE_SMALL
+    global HANDICAP_RANK_DIFFERENCE_19X19
+
+    if (HANDICAP_RANK_DIFFERENCE_19X19 and size == 19) or (HANDICAP_RANK_DIFFERENCE_SMALL and size != 19):
+        # The territorial value of a free stone.
+        stone_value = 12
+
+        # Number of extra moves black makes before white responds.
+        num_extra_moves = handicap - 1 if handicap > 1 else 0
+
+        if rules == "japanese" or rules == "korean":
+            # Territory scoring.
+            area_bonus = 0
+            komi_bonus = 0
+        else:
+            # Bonus for the area value of a stone in area scoring.
+            area_bonus = 1
+
+            # Chinese and AGA rules add extra komi when there's a handicap but
+            # don't store it in the 'komi' field.
+            if rules == "chinese":
+                komi_bonus = 1 * handicap
+            elif rules == "aga":
+                komi_bonus = 1 * num_extra_moves
+            else:
+                komi_bonus = 0
+
+        # Figure out the point value of black's head start, if any, by
+        # subtracting the actual komi from the fair komi for an even game, and
+        # adding the point value of any extra moves.
+        fair_komi = stone_value / 2 + area_bonus + 0.5
+        actual_komi = komi + komi_bonus
+        value_extra_moves = (stone_value + area_bonus) * num_extra_moves
+        head_start = fair_komi - actual_komi + value_extra_moves
+
+        # Convert back to a fractional handicap, using scaling factors of 3x
+        # and 6x for 9x9 and 13x13.
+        if size == 9:
+            return head_start * 6 / stone_value
+        if size == 13:
+            return head_start * 3 / stone_value
+        return head_start / stone_value
+
     if HALF_STONE_HANDICAP_FOR_ALL_RANKS:
-        return rank_to_rating(rating_to_rank(rating) + (handicap - 0.5 if handicap > 0 else 0)) - rating
+        return handicap - 0.5 if handicap > 0 else 0
     if HALF_STONE_HANDICAP:
-        return rank_to_rating(rating_to_rank(rating) + (0.5 if handicap == 1 else handicap)) - rating
-    return rank_to_rating(rating_to_rank(rating) + handicap) - rating
+        return 0.5 if handicap == 1 else handicap
+    return handicap
+
+
+def get_handicap_adjustment(rating: float, handicap: int, size: int, komi: float, rules: str) -> float:
+    rank_difference = get_handicap_rank_difference(handicap, size, komi, rules)
+    effective_rank = rating_to_rank(rating) + rank_difference
+    return rank_to_rating(effective_rank) - rating
+
 
 def set_optimizer_rating_points(points: List[float]) -> None:
     global optimizer_rating_control_points
@@ -99,9 +162,13 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     global D
     global HALF_STONE_HANDICAP
     global HALF_STONE_HANDICAP_FOR_ALL_RANKS
+    global HANDICAP_RANK_DIFFERENCE_SMALL
+    global HANDICAP_RANK_DIFFERENCE_19X19
 
     HALF_STONE_HANDICAP = args.half_stone_handicap
     HALF_STONE_HANDICAP_FOR_ALL_RANKS = args.half_stone_handicap_for_all_ranks
+    HANDICAP_RANK_DIFFERENCE_SMALL = args.handicap_rank_difference_small
+    HANDICAP_RANK_DIFFERENCE_19X19 = args.handicap_rank_difference_19x19
     system: str = args.ranks
     a: float = args.a
     c: float = args.c
@@ -260,7 +327,9 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     else:
         raise NotImplementedError
 
-    assert round(get_handicap_adjustment(1000.0, 0), 8) == 0
+    for size in [9, 13, 19]:
+        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="japanese", komi=6.5), 8) == 0
+        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="aga", komi=7.5), 8) == 0
 
 
 def lerp(x:float, y:float, a:float):

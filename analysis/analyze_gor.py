@@ -44,15 +44,19 @@ class OneGameAtATime(RatingSystem):
 
 
         updated_black = gor_update(
-            black.with_handicap(get_handicap_adjustment(black.rating, game.handicap)),
-            #white.with_handicap(-get_handicap_adjustment(white.rating, game.handicap)),
+            black.with_handicap(get_handicap_adjustment(black.rating, game.handicap,
+                    komi=game.komi, size=game.size, rules=game.rules,
+                    )),
+            #white.with_handicap(-get_handicap_adjustment(white.rating, game.handicap, ...)),
             white,
             1 if game.winner_id == game.black_id else 0,
         )
 
         updated_white = gor_update(
             white,
-            black.with_handicap(get_handicap_adjustment(black.rating, game.handicap)),
+            black.with_handicap(get_handicap_adjustment(black.rating, game.handicap,
+                    komi=game.komi, size=game.size, rules=game.rules,
+                    )),
             1 if game.winner_id == game.white_id else 0,
         )
 
@@ -65,8 +69,10 @@ class OneGameAtATime(RatingSystem):
         return GorAnalytics(
             skipped=False,
             game=game,
-            expected_win_rate=black.with_handicap(get_handicap_adjustment(white.rating, game.handicap)).expected_win_probability(
-                #white.copy(-get_handicap_adjustment(white.rating, game.handicap))
+            expected_win_rate=black.with_handicap(get_handicap_adjustment(white.rating, game.handicap,
+                    komi=game.komi, size=game.size, rules=game.rules,
+                    )).expected_win_probability(
+                #white.copy(-get_handicap_adjustment(white.rating, game.handicap, ...))
                 white
             ),
             black_rating=black.rating,
