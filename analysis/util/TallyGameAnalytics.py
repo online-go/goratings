@@ -17,7 +17,7 @@ from .GameData import datasets_used
 from .Glicko2Analytics import Glicko2Analytics
 from .GorAnalytics import GorAnalytics
 from .InMemoryStorage import InMemoryStorage
-from .RatingMath import rating_config, rating_to_rank
+from .RatingMath import rating_config, rating_to_rank, get_handicap_rank_difference
 from .EGFGameData import EGFGameData
 from .AGAGameData import AGAGameData
 
@@ -73,7 +73,11 @@ class TallyGameAnalytics:
             self.games_ignored += 1
             return
 
-        if abs(result.black_rank + result.game.handicap - result.white_rank) > 1:
+        handicap_rank_difference = get_handicap_rank_difference(handicap=result.game.handicap,
+                                                                size=result.game.size,
+                                                                komi=result.game.komi,
+                                                                rules=result.game.rules)
+        if abs(result.black_rank + handicap_rank_difference - result.white_rank) > 1:
             self.games_ignored += 1
             return
 
@@ -89,7 +93,7 @@ class TallyGameAnalytics:
                 ]:
                     for handicap in [ALL, result.game.handicap]:
                         if isinstance(rank, int) or isinstance(rank, str):  # this is just to make mypy happy
-                            if abs(result.black_rank + result.game.handicap - result.white_rank) <= 1:
+                            if abs(result.black_rank + handicap_rank_difference - result.white_rank) <= 1:
                                 self.count_black_wins[size][speed][rank][handicap] += 1
                                 if black_won:
                                     self.black_wins[size][speed][rank][handicap] += 1

@@ -8,6 +8,7 @@ __all__ = [
     "rank_to_rating",
     "rating_to_rank",
     "get_handicap_adjustment",
+    "get_handicap_rank_difference",
     "rating_config",
     "set_optimizer_rating_points",
     "set_exhaustive_log_parameters",
