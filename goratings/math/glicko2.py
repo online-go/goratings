@@ -72,15 +72,9 @@ class Glicko2Entry:
                 return 1 / sqrt(1 + 3 * q ** 2 * (self.deviation ** 2) / pi ** 2)
 
         E = 1 / (
-            1
-            + (
-                10
-                ** (
-                    -g(sqrt(self.deviation ** 2 + white.deviation ** 2))
+            1 + exp(-g(sqrt(self.deviation ** 2 + white.deviation ** 2))
                     * (self.rating + handicap_adjustment - white.rating)
-                    / 400
-                )
-            )
+                    / 400)
         )
         return E
 
