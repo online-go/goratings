@@ -331,12 +331,12 @@ class TallyGameAnalytics:
         else:
             raise Exception('Failed to find data directory')
 
-        if os.path.exists(pathname + 'self_repoted_account_links.full.json'):
-            pathname += 'self_repoted_account_links.full.json'
-        elif os.path.exists(pathname + 'self_repoted_account_links.json'):
-            pathname = 'self_repoted_account_links.json'
+        if os.path.exists(pathname + 'self_reported_account_links.full.json'):
+            pathname += 'self_reported_account_links.full.json'
+        elif os.path.exists(pathname + 'self_reported_account_links.json'):
+            pathname = 'self_reported_account_links.json'
         else:
-            raise Exception('Failed to find self_repoted_account_links json file')
+            raise Exception('Failed to find self_reported_account_links json file')
 
 
         with open(pathname, 'r') as f:
@@ -431,12 +431,12 @@ class TallyGameAnalytics:
         else:
             raise Exception('Failed to find data directory')
 
-        if os.path.exists(pathname + 'self_repoted_account_links.full.json'):
-            pathname += 'self_repoted_account_links.full.json'
-        elif os.path.exists(pathname + 'self_repoted_account_links.json'):
-            pathname = 'self_repoted_account_links.json'
+        if os.path.exists(pathname + 'self_reported_account_links.full.json'):
+            pathname += 'self_reported_account_links.full.json'
+        elif os.path.exists(pathname + 'self_reported_account_links.json'):
+            pathname = 'self_reported_account_links.json'
         else:
-            raise Exception('Failed to find self_repoted_account_links json file')
+            raise Exception('Failed to find self_reported_account_links json file')
 
 
         with open(pathname, 'r') as f:
