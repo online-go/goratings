@@ -32,6 +32,11 @@ cli.add_argument(
 )
 
 cli.add_argument(
+    "--games-offset", dest="games_offset", type=int, default=0,
+    help="Number of early games to skip before processing, 0 for none",
+)
+
+cli.add_argument(
     "--corr", dest="corr", const=1, default=False, action="store_const", help="Only use correspondence games",
 )
 
