@@ -29,6 +29,7 @@ class OGSGameData:
     def __iter__(self) -> Iterator[GameRecord]:
         c = self._conn.cursor()
         limit = config.args.num_games or 99999999999
+        offset = config.args.games_offset
         t = 0.0
         ct = 0
         num_records = 0
@@ -52,6 +53,10 @@ class OGSGameData:
             """ % where
         ):
             num_records = int(row[0])
+            if offset > num_records:
+                num_records = 0
+            else:
+                num_records = num_records - offset
             if limit < num_records:
                 num_records = limit
 
@@ -95,8 +100,10 @@ class OGSGameData:
                 ORDER BY ended
                 LIMIT
                     ?
+                OFFSET
+                    ?
             """ % (join, where),
-            [limit],
+            (limit, offset),
         ):
             ct += 1
             if not self.quiet and time() - t > 0.05:
