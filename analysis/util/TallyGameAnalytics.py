@@ -167,8 +167,8 @@ class TallyGameAnalytics:
         #    "| {prediction_h1:>7.5f} | {prediction_h2:>7.5f} | {unexp_change:>8.5%} |".format(
         print("")
         print("")
-        print("| Algorithm name | Stronger wins | h0 | h1 | h2 |")
-        print("|:---------------|--------------:|---:|---:|--------------:|")
+        print("| Algorithm name | Rating quality | h0 | h1 | h2 |")
+        print("|:---------------|---------------:|---:|---:|---:|")
         print(
             "| {name:>s} | {prediction:>13.1%} | {prediction_h0:>5.1%} "
             "| {prediction_h1:>5.1%} | {prediction_h2:>5.1%} |".format(
@@ -232,6 +232,9 @@ class TallyGameAnalytics:
                     )
 
     def print_handicap_performance(self) -> None:
+        print("")
+        print("")
+        print("How often black wins:")
         for size in [9, 13, 19, ALL]:
             print("")
             if size == ALL:
@@ -257,7 +260,7 @@ class TallyGameAnalytics:
     def print_handicap_prediction(self) -> None:
         print("")
         print("")
-        print("How often does the player with the higher rating win.")
+        print("How often the predicted winner wins:")
         for size in [9, 13, 19, ALL]:
             print("")
             if size == ALL:
@@ -521,7 +524,7 @@ class TallyGameAnalytics:
     def print_handicap_cost(self) -> None:
         print("")
         print("")
-        print("Quality of the rating. (lower is better)")
+        print("Quality of the rating (lower is better):")
         for size in [9, 13, 19, ALL]:
             print("")
             if size == ALL:
