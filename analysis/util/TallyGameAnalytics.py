@@ -12,12 +12,13 @@ from statistics import mean
 from time import time, ctime
 from typing import Any, DefaultDict, Dict, Union, List
 
+from .CLI import cli
 from .Config import config
 from .GameData import datasets_used
 from .Glicko2Analytics import Glicko2Analytics
 from .GorAnalytics import GorAnalytics
 from .InMemoryStorage import InMemoryStorage
-from .RatingMath import rating_config, rating_to_rank
+from .RatingMath import rating_config, rating_to_rank, get_handicap_rank_difference
 from .EGFGameData import EGFGameData
 from .AGAGameData import AGAGameData
 
@@ -43,6 +44,14 @@ ResultStorageType = DefaultDict[
     int, DefaultDict[int, DefaultDict[Union[int, str], DefaultDict[int, Union[int, float]]]],
 ]
 
+cli.add_argument(
+    "--mismatch-threshold-black-wins", dest="mismatch_threshold_black_wins", type=float, default=1.0,
+    help="Rank difference threshold for ignoring mismatched games in 'black wins' table",
+)
+cli.add_argument(
+    "--mismatch-threshold-predictions", dest="mismatch_threshold_predictions", type=float, default=1.0,
+    help="Rank difference threshold for ignoring mismatched games in prediction tables",
+)
 
 class TallyGameAnalytics:
     games_ignored: int
@@ -73,7 +82,14 @@ class TallyGameAnalytics:
             self.games_ignored += 1
             return
 
-        if abs(result.black_rank + result.game.handicap - result.white_rank) > 1:
+        handicap_rank_difference = get_handicap_rank_difference(handicap=result.game.handicap,
+                                                                size=result.game.size,
+                                                                komi=result.game.komi,
+                                                                rules=result.game.rules)
+        effective_rank_difference = abs(result.black_rank + handicap_rank_difference - result.white_rank)
+        tally_black_wins = effective_rank_difference <= config.args.mismatch_threshold_black_wins
+        tally_predictions = effective_rank_difference <= config.args.mismatch_threshold_predictions
+        if not tally_black_wins and not tally_predictions:
             self.games_ignored += 1
             return
 
@@ -89,20 +105,22 @@ class TallyGameAnalytics:
                 ]:
                     for handicap in [ALL, result.game.handicap]:
                         if isinstance(rank, int) or isinstance(rank, str):  # this is just to make mypy happy
-                            if abs(result.black_rank + result.game.handicap - result.white_rank) <= 1:
+                            if tally_black_wins:
                                 self.count_black_wins[size][speed][rank][handicap] += 1
                                 if black_won:
                                     self.black_wins[size][speed][rank][handicap] += 1
-                            self.predictions[size][speed][rank][handicap] += result.expected_win_rate
-                            self.predicted_outcome[size][speed][rank][handicap] += (
-                                black_won
-                                if result.expected_win_rate > 0.5
-                                else (not black_won if result.expected_win_rate < 0.5 else 0.5)
-                            )
-                            # Cap the expected win rate at 1 in 1M to avoid MathDomain errors.
-                            capped_win_rate = max(min(result.expected_win_rate, 0.999999), 0.000001)
-                            self.prediction_cost[size][speed][rank][handicap] += - math.log(capped_win_rate if black_won else 1 - capped_win_rate)
-                            self.count[size][speed][rank][handicap] += 1
+                            if tally_predictions:
+                                self.predictions[size][speed][rank][handicap] += result.expected_win_rate
+                                self.predicted_outcome[size][speed][rank][handicap] += (
+                                    black_won
+                                    if result.expected_win_rate > 0.5
+                                    else (not black_won if result.expected_win_rate < 0.5 else 0.5)
+                                )
+                                # Cap the expected win rate at 1 in 1M to avoid MathDomain errors.
+                                capped_win_rate = max(min(result.expected_win_rate, 0.999999), 0.000001)
+                                self.prediction_cost[size][speed][rank][handicap] += - math.log(capped_win_rate if black_won else 1 - capped_win_rate)
+                                self.count[size][speed][rank][handicap] += 1
+
 
     def add_gor_analytics(self, result: GorAnalytics) -> None:
         if result.skipped:
