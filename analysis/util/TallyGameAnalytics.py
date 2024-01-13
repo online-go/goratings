@@ -116,8 +116,11 @@ class TallyGameAnalytics:
                                     if result.expected_win_rate > 0.5
                                     else (not black_won if result.expected_win_rate < 0.5 else 0.5)
                                 )
-                                self.prediction_cost[size][speed][rank][handicap] += - math.log(result.expected_win_rate if black_won else 1 - result.expected_win_rate)
+                                # Cap the expected win rate at 1 in 1M to avoid MathDomain errors.
+                                capped_win_rate = max(min(result.expected_win_rate, 0.999999), 0.000001)
+                                self.prediction_cost[size][speed][rank][handicap] += - math.log(capped_win_rate if black_won else 1 - capped_win_rate)
                                 self.count[size][speed][rank][handicap] += 1
+
 
     def add_gor_analytics(self, result: GorAnalytics) -> None:
         if result.skipped:
