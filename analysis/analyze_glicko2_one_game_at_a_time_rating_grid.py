@@ -63,7 +63,7 @@ class OneGameAtATimeRatingGrid(RatingSystem):
                     black,
                     [
                         (
-                            src_white.copy(-get_handicap_adjustment(src_white.rating, game.handicap,
+                            src_white.copy(get_handicap_adjustment("white", src_white.rating, game.handicap,
                                     komi=game.komi, size=game.size, rules=game.rules,
                                     )),
                             game.winner_id == game.black_id,
@@ -75,7 +75,7 @@ class OneGameAtATimeRatingGrid(RatingSystem):
                     white,
                     [
                         (
-                            src_black.copy(get_handicap_adjustment(src_black.rating, game.handicap,
+                            src_black.copy(get_handicap_adjustment("black", src_black.rating, game.handicap,
                                     komi=game.komi, size=game.size, rules=game.rules,
                                     )),
                             game.winner_id == game.white_id,
@@ -93,7 +93,7 @@ class OneGameAtATimeRatingGrid(RatingSystem):
                     skipped=False,
                     game=game,
                     expected_win_rate=black.expected_win_probability(
-                        white, get_handicap_adjustment(black.rating, game.handicap,
+                        white, get_handicap_adjustment("black", black.rating, game.handicap,
                             komi=game.komi, size=game.size, rules=game.rules,
                             ), ignore_g=True
                     ),
