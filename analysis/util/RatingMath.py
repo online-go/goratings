@@ -136,7 +136,8 @@ def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: s
 
         # The point value of black's advantage (or disadvantage) at the start
         # of the game.  This value is normalized to have the same meaning
-        # whether using area or territory rules.
+        # whether using area or territory rules, using the logic that the AGA
+        # ruleset uses to make territory counting equivalent to area counting.
         black_head_start = perfect_komi - full_komi + stone_value * num_extra_moves
 
         # Convert the head start from "points" to "ranks", defining 1 rank as
