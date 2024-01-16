@@ -53,10 +53,9 @@ class Glicko2Entry:
         global MAX_RD
         global MIN_RD
 
-        for _i in range(n_periods):
-            phi_prime = sqrt(self.phi ** 2 + self.volatility ** 2)
-            self.deviation = min(MAX_RD, max(MIN_RD, GLICKO2_SCALE * phi_prime))
-            self.phi = self.deviation / GLICKO2_SCALE
+        phi_prime = sqrt(self.phi ** 2 + n_periods * self.volatility ** 2)
+        self.deviation = min(MAX_RD, max(MIN_RD, GLICKO2_SCALE * phi_prime))
+        self.phi = self.deviation / GLICKO2_SCALE
 
         return self
 
