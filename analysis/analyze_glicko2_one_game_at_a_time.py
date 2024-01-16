@@ -39,7 +39,7 @@ class OneGameAtATime(RatingSystem):
             black,
             [
                 (
-                    white.copy(-get_handicap_adjustment(white.rating, game.handicap,
+                    white.copy(get_handicap_adjustment("white", white.rating, game.handicap,
                                                         komi=game.komi, size=game.size,
                                                         rules=game.rules,
                             )),
@@ -52,7 +52,7 @@ class OneGameAtATime(RatingSystem):
             white,
             [
                 (
-                    black.copy(get_handicap_adjustment(black.rating, game.handicap,
+                    black.copy(get_handicap_adjustment("black", black.rating, game.handicap,
                                                        komi=game.komi, size=game.size,
                                                        rules=game.rules,
                             )),
@@ -70,7 +70,7 @@ class OneGameAtATime(RatingSystem):
             skipped=False,
             game=game,
             expected_win_rate=black.expected_win_probability(
-                white, get_handicap_adjustment(black.rating, game.handicap,
+                white, get_handicap_adjustment("black", black.rating, game.handicap,
                                                komi=game.komi, size=game.size,
                                                rules=game.rules,
                     ), ignore_g=True

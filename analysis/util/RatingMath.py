@@ -144,9 +144,17 @@ def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: s
     return handicap
 
 
-def get_handicap_adjustment(rating: float, handicap: int, size: int, komi: float, rules: str) -> float:
+def get_handicap_adjustment(player: str, rating: float, handicap: int, size: int, komi: float, rules: str) -> float:
     rank_difference = get_handicap_rank_difference(handicap, size, komi, rules)
-    effective_rank = rating_to_rank(rating) + rank_difference
+
+    # Apply the +/- for white/black in the "rank" domain where it's symmetric.
+    # Note that the "rating" domain is log-scale, where +/- is asymmetric.
+    assert player == "white" or player == "black"
+    if player == "black":
+        effective_rank = rating_to_rank(rating) + rank_difference
+    else:
+        effective_rank = rating_to_rank(rating) - rank_difference
+
     return rank_to_rating(effective_rank) - rating
 
 
@@ -329,8 +337,9 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
         raise NotImplementedError
 
     for size in [9, 13, 19]:
-        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="japanese", komi=6.5), 8) == 0
-        assert round(get_handicap_adjustment(1000.0, 0, size=size, rules="aga", komi=7.5), 8) == 0
+        for player in ["white", "black"]:
+            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="japanese", komi=6.5), 8) == 0
+            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="aga", komi=7.5), 8) == 0
 
 
 def lerp(x:float, y:float, a:float):

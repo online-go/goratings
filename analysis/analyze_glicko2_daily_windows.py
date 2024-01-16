@@ -45,7 +45,9 @@ class DailyWindows(RatingSystem):
             black_base,
             [
                 (
-                    opponent.copy((1 if past_game.black_id != game.black_id  else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap,
+                    opponent.copy(get_handicap_adjustment(
+                            "black" if past_game.black_id != game.black_id else "white",
+                            opponent.rating, past_game.handicap,
                             komi=past_game.komi, size=past_game.size, rules=past_game.rules,
                             )),
                     past_game.winner_id == game.black_id
@@ -60,7 +62,9 @@ class DailyWindows(RatingSystem):
             white_base,
             [
                 (
-                    opponent.copy((1 if past_game.black_id != game.white_id else -1) * get_handicap_adjustment(opponent.rating, past_game.handicap,
+                    opponent.copy(get_handicap_adjustment(
+                            "black" if past_game.black_id != game.black_id else "white",
+                            opponent.rating, past_game.handicap,
                             komi=past_game.komi, size=past_game.size, rules=past_game.rules,
                             )),
                     past_game.winner_id == game.white_id
@@ -80,7 +84,7 @@ class DailyWindows(RatingSystem):
             skipped=False,
             game=game,
             expected_win_rate=black_cur.expected_win_probability(
-                white_cur, get_handicap_adjustment(black_cur.rating, game.handicap,
+                white_cur, get_handicap_adjustment("black", black_cur.rating, game.handicap,
                     komi=game.komi, size=game.size, rules=game.rules,
                     ), ignore_g=True
             ),
