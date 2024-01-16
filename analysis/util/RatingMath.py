@@ -124,7 +124,7 @@ def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: s
         # Figure out the point value of black's head start, if any, by
         # subtracting the actual komi from the fair komi for an even game, and
         # adding the point value of any extra moves.
-        fair_komi = stone_value / 2 + area_bonus + 0.5
+        fair_komi = stone_value / 2 + area_bonus
         actual_komi = komi + komi_bonus
         value_extra_moves = (stone_value + area_bonus) * num_extra_moves
         head_start = fair_komi - actual_komi + value_extra_moves
@@ -338,8 +338,17 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
 
     for size in [9, 13, 19]:
         for player in ["white", "black"]:
-            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="japanese", komi=6.5), 8) == 0
-            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="aga", komi=7.5), 8) == 0
+            # KataGo and AlphaGo believe white is ahead by 0.5 points when
+            # given the standard komi of 7.5.  Thus, treat 7 komi as
+            # correct/fair for area, 6 komi for territory.
+            #
+            # Sources:
+            # - "What have we learned from AI" on the "Komi" page at
+            #   Sensei's Library: <https://senseis.xmp.net/?Komi#toc8>
+            # - "Perfect Komi" on the "Komi (Go)" page at Wikipedia:
+            #   <https://en.wikipedia.org/wiki/Komi_(Go)#Perfect_Komi>
+            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="japanese", komi=6), 8) == 0
+            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="aga", komi=7), 8) == 0
 
 
 def lerp(x:float, y:float, a:float):
