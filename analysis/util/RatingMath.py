@@ -98,44 +98,56 @@ def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: s
     global HANDICAP_RANK_DIFFERENCE_19X19
 
     if (HANDICAP_RANK_DIFFERENCE_19X19 and size == 19) or (HANDICAP_RANK_DIFFERENCE_SMALL and size != 19):
-        # The territorial value of a free stone.
-        stone_value = 12
-
         # Number of extra moves black makes before white responds.
         num_extra_moves = handicap - 1 if handicap > 1 else 0
 
         if rules == "japanese" or rules == "korean":
             # Territory scoring.
             area_bonus = 0
-            komi_bonus = 0
+            handicap_scoring_bonus = 0
         else:
             # Bonus for the area value of a stone in area scoring.
             area_bonus = 1
 
-            # Chinese and AGA rules add extra komi when there's a handicap but
-            # don't store it in the 'komi' field.
+            # Chinese and AGA rules add a handicap bonus for white in addition
+            # to the komi.
             if rules == "chinese":
-                komi_bonus = 1 * handicap
+                handicap_scoring_bonus = 1 * handicap
             elif rules == "aga":
-                komi_bonus = 1 * num_extra_moves
+                handicap_scoring_bonus = 1 * num_extra_moves
             else:
-                komi_bonus = 0
+                handicap_scoring_bonus = 0
 
-        # Figure out the point value of black's head start, if any, by
-        # subtracting the actual komi from the fair komi for an even game, and
-        # adding the point value of any extra moves.
-        fair_komi = stone_value / 2 + area_bonus + 0.5
-        actual_komi = komi + komi_bonus
-        value_extra_moves = (stone_value + area_bonus) * num_extra_moves
-        head_start = fair_komi - actual_komi + value_extra_moves
+        # Full points added to white's score, including any handicap scoring.
+        full_komi = komi + handicap_scoring_bonus
 
-        # Convert back to a fractional handicap, using scaling factors of 3x
-        # and 6x for 9x9 and 13x13.
+        # Current best estimate for perfect komi.
+        #
+        # Sources:
+        # - <https://en.wikipedia.org/wiki/Komi_(Go)#Perfect_Komi>
+        # - <https://senseis.xmp.net/?Komi#toc8>
+        perfect_komi_territory = 6
+        perfect_komi = perfect_komi_territory + area_bonus
+
+        # Komi compensates white for black getting an extra half move.  The
+        # territorial value of a free stone is twice that.
+        stone_value_territory = (perfect_komi_territory) * 2
+        stone_value = stone_value_territory + area_bonus
+
+        # The point value of black's advantage (or disadvantage) at the start
+        # of the game.  This value is normalized to have the same meaning
+        # whether using area or territory rules, using the logic that the AGA
+        # ruleset uses to make territory counting equivalent to area counting.
+        black_head_start = perfect_komi - full_komi + stone_value * num_extra_moves
+
+        # Convert the head start from "points" to "ranks", defining 1 rank as
+        # the territorial value of a free move on a 19x19 board.  For small
+        # boards, the head start needs to be scaled up to a 19x19 board.
         if size == 9:
-            return head_start * 6 / stone_value
+            return black_head_start * 6 / stone_value_territory
         if size == 13:
-            return head_start * 3 / stone_value
-        return head_start / stone_value
+            return black_head_start * 3 / stone_value_territory
+        return black_head_start / stone_value_territory
 
     if HALF_STONE_HANDICAP_FOR_ALL_RANKS:
         return handicap - 0.5 if handicap > 0 else 0
@@ -338,8 +350,17 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
 
     for size in [9, 13, 19]:
         for player in ["white", "black"]:
-            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="japanese", komi=6.5), 8) == 0
-            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="aga", komi=7.5), 8) == 0
+            # KataGo and AlphaGo believe white is ahead by 0.5 points when
+            # given the standard komi of 7.5.  Thus, treat 7 komi as
+            # correct/fair for area, 6 komi for territory.
+            #
+            # Sources:
+            # - "What have we learned from AI" on the "Komi" page at
+            #   Sensei's Library: <https://senseis.xmp.net/?Komi#toc8>
+            # - "Perfect Komi" on the "Komi (Go)" page at Wikipedia:
+            #   <https://en.wikipedia.org/wiki/Komi_(Go)#Perfect_Komi>
+            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="japanese", komi=6), 8) == 0
+            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="aga", komi=7), 8) == 0
 
 
 def lerp(x:float, y:float, a:float):
