@@ -15,7 +15,6 @@ from analysis.util import (
 from goratings.interfaces import GameRecord, RatingSystem, Storage
 from goratings.math.glicko2 import Glicko2Entry, glicko2_update
 
-
 class OneGameAtATime(RatingSystem):
     _storage: Storage
 
@@ -34,6 +33,9 @@ class OneGameAtATime(RatingSystem):
 
         black = self._storage.get(game.black_id)
         white = self._storage.get(game.white_id)
+        if config.args.aging_period:
+            black = black.after_aging(game.ended, period_duration=config.args.aging_period * 60 * 60 * 24)
+            white = white.after_aging(game.ended, period_duration=config.args.aging_period * 60 * 60 * 24)
 
         updated_black = glicko2_update(
             black,

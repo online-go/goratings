@@ -26,34 +26,49 @@ class Glicko2Entry:
     volatility: float
     mu: float
     phi: float
+    timestamp: int
 
-    def __init__(self, rating: float = 1500, deviation: float = 350, volatility: float = 0.06) -> None:
+    def __init__(self, rating: float = 1500, deviation: float = 350, volatility: float = 0.06, timestamp: int | None = None) -> None:
         self.rating = rating
         self.deviation = deviation
         self.volatility = volatility
         self.mu = (self.rating - 1500) / GLICKO2_SCALE
         self.phi = self.deviation / GLICKO2_SCALE
+        self.timestamp = timestamp
 
     def __str__(self) -> str:
-        return "%7.2f +- %6.2f (%.6f [%.4f])" % (
+        return "%7.2f +- %6.2f (%.6f [%.4f]) @ %10d" % (
             self.rating,
             self.deviation,
             self.volatility,
             self.volatility * GLICKO2_SCALE,
+            0 if self.timestamp is None else self.timestamp,
         )
 
     def copy(self, rating_adjustment: float = 0.0, rd_adjustment: float = 0.0) -> "Glicko2Entry":
-        ret = Glicko2Entry(self.rating + rating_adjustment, self.deviation + rd_adjustment, self.volatility,)
+        ret = Glicko2Entry(self.rating + rating_adjustment, self.deviation + rd_adjustment, self.volatility, self.timestamp,)
         return ret
 
     def expand_deviation_because_no_games_played(self, n_periods: int = 1) -> "Glicko2Entry":
-        # Implementation as defined by:
-        #   http://www.glicko.net/glicko/glicko2.pdf (note after step 8)
+        return self.expand_deviation(age=float(n_periods))
 
+    def after_aging(self, now: int, period_duration: int | float = 1) -> "Glicko2Entry":
+        copy = self.copy()
+        copy.timestamp = now
+        if self.timestamp is None:
+            return copy
+        assert now >= copy.timestamp
+        return copy.expand_deviation(age=now - self.timestamp, period_duration=period_duration)
+
+    def expand_deviation(self, age: int | float, period_duration: int | float = 1) -> "Glicko2Entry":
+        # Implementation as defined by [glicko2], but converted to closed form,
+        # allowing deviation to expand continuously over fractional periods.
+        #
+        # [glicko2]: http://www.glicko.net/glicko/glicko2.pdf (note after step 8)
         global MAX_RD
         global MIN_RD
 
-        phi_prime = sqrt(self.phi ** 2 + n_periods * self.volatility ** 2)
+        phi_prime = sqrt(self.phi ** 2 + age * self.volatility ** 2 / period_duration)
         self.deviation = min(MAX_RD, max(MIN_RD, GLICKO2_SCALE * phi_prime))
         self.phi = self.deviation / GLICKO2_SCALE
 
@@ -144,6 +159,7 @@ def glicko2_update(player: Glicko2Entry, matches: List[Tuple[Glicko2Entry, int]]
         rating=min(MAX_RATING, max(MIN_RATING, GLICKO2_SCALE * mu_prime + 1500)),
         deviation=min(MAX_RD, max(MIN_RD, GLICKO2_SCALE * phi_prime)),
         volatility=min(0.15, max(0.01, new_volatility)),
+        timestamp=player.timestamp,
     )
     return ret
 

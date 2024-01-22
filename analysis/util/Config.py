@@ -29,6 +29,10 @@ glicko2_config.add_argument("--min-rd", dest="min_rd", type=float, default=10.0,
 glicko2_config.add_argument(
     "--max-rd", dest="max_rd", type=float, default=500.0, help="maximum rating deviation",
 )
+glicko2_config.add_argument(
+    "--aging-period", dest="aging_period", type=float, default=0,
+    help="number of days in the aging period, or 0 to disable aging",
+)
 
 
 def configure_glicko2(args: argparse.Namespace) -> None:
