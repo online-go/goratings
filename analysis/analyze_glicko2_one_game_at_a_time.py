@@ -33,9 +33,6 @@ class OneGameAtATime(RatingSystem):
 
         black = self._storage.get(game.black_id)
         white = self._storage.get(game.white_id)
-        if config.args.aging_period:
-            black = black.after_aging(game.ended, period_duration=config.args.aging_period * 60 * 60 * 24)
-            white = white.after_aging(game.ended, period_duration=config.args.aging_period * 60 * 60 * 24)
 
         updated_black = glicko2_update(
             black,
@@ -48,6 +45,7 @@ class OneGameAtATime(RatingSystem):
                     game.winner_id == game.black_id,
                 )
             ],
+            timestamp=game.ended,
         )
 
         updated_white = glicko2_update(
@@ -61,6 +59,7 @@ class OneGameAtATime(RatingSystem):
                     game.winner_id == game.white_id,
                 )
             ],
+            timestamp=game.ended,
         )
 
         self._storage.set(game.black_id, updated_black)
