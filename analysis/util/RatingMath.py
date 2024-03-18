@@ -32,27 +32,6 @@ A = 525
 C = 23.15
 D = 0
 P = 1
-HALF_STONE_HANDICAP = False
-HALF_STONE_HANDICAP_FOR_ALL_RANKS = False
-HANDICAP_RANK_DIFFERENCE_SMALL = False
-HANDICAP_RANK_DIFFERENCE_19X19 = False
-
-cli.add_argument(
-    "--half-stone-handicap", dest="half_stone_handicap", const=1, default=False, action="store_const", help="Use a 0.5 rank adjustment for hc1",
-)
-cli.add_argument(
-    "--half-stone-handicap-for-all-ranks", dest="half_stone_handicap_for_all_ranks", const=1, default=False, action="store_const", help="use rankdiff -0.5 for handicap",
-)
-cli.add_argument(
-    "--handicap-rank-difference-small",
-    dest="handicap_rank_difference_small", const=1, default=False, action="store_const",
-    help="compute effective handicap rank difference with komi for small boards",
-)
-cli.add_argument(
-    "--handicap-rank-difference-19x19",
-    dest="handicap_rank_difference_19x19", const=1, default=False, action="store_const",
-    help="compute effective handicap rank difference with komi for 19x19 boards",
-)
 
 logarithmic = cli.add_argument_group(
     "logarithmic ranking variables", "rating to ranks converted with `(log(rating / a) ** p) * c + d`",
@@ -92,68 +71,56 @@ def set_exhaustive_log_parameters(a: float, c:float, d:float, p:float = 1.0) -> 
 
 
 def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: str) -> float:
-    global HALF_STONE_HANDICAP
-    global HALF_STONE_HANDICAP_FOR_ALL_RANKS
-    global HANDICAP_RANK_DIFFERENCE_SMALL
-    global HANDICAP_RANK_DIFFERENCE_19X19
+    # Number of extra moves black makes before white responds.
+    num_extra_moves = handicap - 1 if handicap > 1 else 0
 
-    if (HANDICAP_RANK_DIFFERENCE_19X19 and size == 19) or (HANDICAP_RANK_DIFFERENCE_SMALL and size != 19):
-        # Number of extra moves black makes before white responds.
-        num_extra_moves = handicap - 1 if handicap > 1 else 0
+    if rules == "japanese" or rules == "korean":
+        # Territory scoring.
+        area_bonus = 0
+        handicap_scoring_bonus = 0
+    else:
+        # Bonus for the area value of a stone in area scoring.
+        area_bonus = 1
 
-        if rules == "japanese" or rules == "korean":
-            # Territory scoring.
-            area_bonus = 0
-            handicap_scoring_bonus = 0
+        # Chinese and AGA rules add a handicap bonus for white in addition
+        # to the komi.
+        if rules == "chinese":
+            handicap_scoring_bonus = 1 * handicap
+        elif rules == "aga":
+            handicap_scoring_bonus = 1 * num_extra_moves
         else:
-            # Bonus for the area value of a stone in area scoring.
-            area_bonus = 1
+            handicap_scoring_bonus = 0
 
-            # Chinese and AGA rules add a handicap bonus for white in addition
-            # to the komi.
-            if rules == "chinese":
-                handicap_scoring_bonus = 1 * handicap
-            elif rules == "aga":
-                handicap_scoring_bonus = 1 * num_extra_moves
-            else:
-                handicap_scoring_bonus = 0
+    # Full points added to white's score, including any handicap scoring.
+    full_komi = komi + handicap_scoring_bonus
 
-        # Full points added to white's score, including any handicap scoring.
-        full_komi = komi + handicap_scoring_bonus
+    # Current best estimate for perfect komi.
+    #
+    # Sources:
+    # - <https://en.wikipedia.org/wiki/Komi_(Go)#Perfect_Komi>
+    # - <https://senseis.xmp.net/?Komi#toc8>
+    perfect_komi_territory = 6
+    perfect_komi = perfect_komi_territory + area_bonus
 
-        # Current best estimate for perfect komi.
-        #
-        # Sources:
-        # - <https://en.wikipedia.org/wiki/Komi_(Go)#Perfect_Komi>
-        # - <https://senseis.xmp.net/?Komi#toc8>
-        perfect_komi_territory = 6
-        perfect_komi = perfect_komi_territory + area_bonus
+    # Komi compensates white for black getting an extra half move.  The
+    # territorial value of a free stone is twice that.
+    stone_value_territory = (perfect_komi_territory) * 2
+    stone_value = stone_value_territory + area_bonus
 
-        # Komi compensates white for black getting an extra half move.  The
-        # territorial value of a free stone is twice that.
-        stone_value_territory = (perfect_komi_territory) * 2
-        stone_value = stone_value_territory + area_bonus
+    # The point value of black's advantage (or disadvantage) at the start
+    # of the game.  This value is normalized to have the same meaning
+    # whether using area or territory rules, using the logic that the AGA
+    # ruleset uses to make territory counting equivalent to area counting.
+    black_head_start = perfect_komi - full_komi + stone_value * num_extra_moves
 
-        # The point value of black's advantage (or disadvantage) at the start
-        # of the game.  This value is normalized to have the same meaning
-        # whether using area or territory rules, using the logic that the AGA
-        # ruleset uses to make territory counting equivalent to area counting.
-        black_head_start = perfect_komi - full_komi + stone_value * num_extra_moves
-
-        # Convert the head start from "points" to "ranks", defining 1 rank as
-        # the territorial value of a free move on a 19x19 board.  For small
-        # boards, the head start needs to be scaled up to a 19x19 board.
-        if size == 9:
-            return black_head_start * 6 / stone_value_territory
-        if size == 13:
-            return black_head_start * 3 / stone_value_territory
-        return black_head_start / stone_value_territory
-
-    if HALF_STONE_HANDICAP_FOR_ALL_RANKS:
-        return handicap - 0.5 if handicap > 0 else 0
-    if HALF_STONE_HANDICAP:
-        return 0.5 if handicap == 1 else handicap
-    return handicap
+    # Convert the head start from "points" to "ranks", defining 1 rank as
+    # the territorial value of a free move on a 19x19 board.  For small
+    # boards, the head start needs to be scaled up to a 19x19 board.
+    if size == 9:
+        return black_head_start * 6 / stone_value_territory
+    if size == 13:
+        return black_head_start * 3 / stone_value_territory
+    return black_head_start / stone_value_territory
 
 
 def get_handicap_adjustment(player: str, rating: float, handicap: int, size: int, komi: float, rules: str) -> float:
@@ -181,15 +148,7 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     global A
     global C
     global D
-    global HALF_STONE_HANDICAP
-    global HALF_STONE_HANDICAP_FOR_ALL_RANKS
-    global HANDICAP_RANK_DIFFERENCE_SMALL
-    global HANDICAP_RANK_DIFFERENCE_19X19
 
-    HALF_STONE_HANDICAP = args.half_stone_handicap
-    HALF_STONE_HANDICAP_FOR_ALL_RANKS = args.half_stone_handicap_for_all_ranks
-    HANDICAP_RANK_DIFFERENCE_SMALL = args.handicap_rank_difference_small
-    HANDICAP_RANK_DIFFERENCE_19X19 = args.handicap_rank_difference_19x19
     system: str = args.ranks
     a: float = args.a
     c: float = args.c
