@@ -99,9 +99,9 @@ def detect_starting_ratings(storage: InMemoryStorage):
 
     def parse_rank(rank: str) -> float:
         if rank[-1:] == "k":
-            return 30 - float(int(rank[:-1]))
+            return 30 - float(rank[:-1])
         if rank[-1:] == "d":
-            return 30 + float(int(rank[:-1])) - 1
+            return 30 + float(rank[:-1]) - 1
         raise ValueError("invalid rank")
 
     STARTING_RANK_DEVIATION = 250
@@ -112,38 +112,32 @@ def detect_starting_ratings(storage: InMemoryStorage):
     def make_rating_threshold(rank: str) -> float:
         return rank_to_rating(parse_rank(rank))
 
-    starting_rating_newtogo = make_starting_rating("25k")
-    starting_rating_basic = make_starting_rating("22k")
-    starting_rating_intermediate = make_starting_rating("12k")
+    starting_rating_newtogo = make_starting_rating("20k")
+    starting_rating_basic = make_starting_rating("16k")
+    starting_rating_intermediate = make_starting_rating("8k")
     starting_rating_advanced = make_starting_rating("2k")
 
-    weaker_threshold_detect_newtogo = make_rating_threshold("35k")
+    weaker_threshold_detect_newtogo = make_rating_threshold("40k")
     weaker_threshold_detect_basic = make_rating_threshold("20k")
-    weaker_threshold_detect_intermediate = make_rating_threshold("10k")
-    stronger_threshold_detect_advanced = make_rating_threshold("4k")
+    weaker_threshold_detect_intermediate = make_rating_threshold("12k")
+    stronger_threshold_detect_advanced = make_rating_threshold("6k")
+    ignore = set()
     def update_starting_rating(player: int, rating: float, deviation: float) -> None:
-        # Ever worse than 35k? New to Go.
+        if deviation > PROVISIONAL_RANK_CUTOFF:
+            return
+        if player in ignore:
+            return
+
+        # First non-provisional rating.
         if rating < weaker_threshold_detect_newtogo:
             storage.set(player, starting_rating_newtogo)
-            return
-
-        # Ever worse than 20k, but not new to Go? Basic.
-        if rating < weaker_threshold_detect_basic:
-            if storage.get(player).rating != starting_rating_newtogo.rating:
-                storage.set(player, starting_rating_basic)
-            return
-
-        # First non-provisional rating is weaker than 10k. Intermediate.
-        if rating < weaker_threshold_detect_intermediate and deviation <= PROVISIONAL_RANK_CUTOFF:
-            if storage.get(player).deviation > STARTING_RANK_DEVIATION:
-                storage.set(player, starting_rating_intermediate)
-            return
-
-        # First non-provisional rating is stronger than 4k. Advanced.
-        if rating > stronger_threshold_detect_advanced and deviation <= PROVISIONAL_RANK_CUTOFF:
-            if storage.get(player).deviation > STARTING_RANK_DEVIATION:
-                storage.set(player, starting_rating_advanced)
-            return
+        elif rating < weaker_threshold_detect_basic:
+            storage.set(player, starting_rating_basic)
+        elif rating < weaker_threshold_detect_intermediate:
+            storage.set(player, starting_rating_intermediate)
+        elif rating > stronger_threshold_detect_advanced:
+            storage.set(player, starting_rating_advanced)
+        ignore.add(player)
 
     for game in detection_data:
         result = detection_engine.process_game(game)
