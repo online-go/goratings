@@ -99,9 +99,9 @@ def detect_starting_ratings(storage: InMemoryStorage):
 
     def parse_rank(rank: str) -> float:
         if rank[-1:] == "k":
-            return 30 - float(rank[:-1])
+            return 30 - float(int(rank[:-1]))
         if rank[-1:] == "d":
-            return 30 + float(rank[:-1]) - 1
+            return 30 + float(int(rank[:-1])) - 1
         raise ValueError("invalid rank")
 
     STARTING_RANK_DEVIATION = 250
@@ -109,16 +109,18 @@ def detect_starting_ratings(storage: InMemoryStorage):
     def make_starting_rating(rank: str) -> Glicko2Entry:
         rating = rank_to_rating(parse_rank(rank))
         return Glicko2Entry(rating=rating, deviation=STARTING_RANK_DEVIATION)
+    def make_rating_threshold(rank: str) -> float:
+        return rank_to_rating(parse_rank(rank))
 
     starting_rating_newtogo = make_starting_rating("25k")
     starting_rating_basic = make_starting_rating("22k")
     starting_rating_intermediate = make_starting_rating("12k")
     starting_rating_advanced = make_starting_rating("2k")
 
-    weaker_threshold_detect_newtogo = rank_to_rating(parse_rank("35k"))
-    weaker_threshold_detect_basic = rank_to_rating(parse_rank("20k"))
-    weaker_threshold_detect_intermediate = rank_to_rating(parse_rank("10k"))
-    stronger_threshold_detect_advanced = rank_to_rating(parse_rank("4k"))
+    weaker_threshold_detect_newtogo = make_rating_threshold("35k")
+    weaker_threshold_detect_basic = make_rating_threshold("20k")
+    weaker_threshold_detect_intermediate = make_rating_threshold("10k")
+    stronger_threshold_detect_advanced = make_rating_threshold("4k")
     def update_starting_rating(player: int, rating: float, deviation: float) -> None:
         # Ever worse than 35k? New to Go.
         if rating < weaker_threshold_detect_newtogo:
