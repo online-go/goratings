@@ -86,14 +86,75 @@ class OneGameAtATime(RatingSystem):
             white_updated_rating=updated_white.rating,
         )
 
+cli.add_argument(
+    "--detect-starting-ratings", dest="detect_starting_ratings",
+    const=1, default=False, action="store_const",
+    help="Detect starting ratings by running analysis twice",
+)
 
 
 # Run
 config(cli.parse_args(), "glicko2-one-game-at-a-time")
+
 game_data = GameData()
 storage = InMemoryStorage(Glicko2Entry)
 engine = OneGameAtATime(storage)
 tally = TallyGameAnalytics(storage)
+
+if config.args.detect_starting_ratings:
+    detection_storage = InMemoryStorage(Glicko2Entry)
+    detection_engine = OneGameAtATime(storage)
+    detection_data = GameData()
+
+    def parse_rank(rank: str) -> float:
+        if rank[-1:] == "k":
+            return 30 - float(rank[:-1])
+        if rank[-1:] == "d":
+            return 30 + float(rank[:-1]) - 1
+        raise ValueError("invalid rank")
+
+    starting_deviation = 250
+    def make_starting_rank(rank: str) -> Glicko2Entry:
+        rating = rank_to_rating(parse_rank(rank))
+        return Glicko2Entry(rating=rating, deviation=starting_deviation)
+
+    starting_rating_newtogo = make_starting_rank("25k")
+    starting_rating_basic = make_starting_rank("22k")
+    starting_rating_intermediate = make_starting_rank("12k")
+    starting_rating_advanced = make_starting_rank("2k")
+
+    weaker_threshold_detect_newtogo = rank_to_rating(parse_rank("35k"))
+    weaker_threshold_detect_basic = rank_to_rating(parse_rank("20k"))
+    weaker_threshold_detect_intermediate = rank_to_rating(parse_rank("10k"))
+    stronger_threshold_detect_advanced = rank_to_rating(parse_rank("4k"))
+    def update_starting_rating(player: int, rating: float, deviation: float) -> None:
+        # Ever worse than 35k? New to Go.
+        if rating < weaker_threshold_detect_newtogo:
+            storage.set(player, starting_rating_newtogo)
+            return
+
+        # Ever worse than 20k, but not new to Go? Basic.
+        if rating < weaker_threshold_detect_basic:
+            if storage.get(player).rating != starting_rating_newtogo.rating:
+                storage.set(player, starting_rating_basic)
+            return
+
+        # First non-provisional rating is weaker than 10k. Intermediate.
+        if rating < weaker_threshold_detect_intermediate and deviation <= 140:
+            if storage.get(player).deviation > starting_deviation:
+                storage.set(player, starting_rating_intermediate)
+            return
+
+        # First non-provisional rating is stronger than 4k. Advanced.
+        if rating > stronger_threshold_detect_advanced and deviation <= 140:
+            if storage.get(player).deviation > starting_deviation:
+                storage.set(player, starting_rating_advanced)
+            return
+
+    for game in game_data:
+        result = detection_engine.process_game(game)
+        update_starting_rating(result.game.black_id, result.black_rating, result.black_deviation)
+        update_starting_rating(result.game.white_id, result.white_rating, result.white_deviation)
 
 for game in game_data:
     analytics = engine.process_game(game)
