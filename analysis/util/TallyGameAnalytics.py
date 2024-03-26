@@ -4,23 +4,24 @@ import math
 import os
 import sys
 from collections import defaultdict
-from filelock import FileLock
 from math import isnan
 from pathlib import Path
-from sys import argv
 from statistics import mean
-from time import time, ctime
-from typing import Any, DefaultDict, Dict, Union, List
+from sys import argv
+from time import ctime, time
+from typing import Any, DefaultDict, Dict, List, Union
 
+from filelock import FileLock
+
+from .AGAGameData import AGAGameData
 from .CLI import cli
 from .Config import config
+from .EGFGameData import EGFGameData
 from .GameData import datasets_used
 from .Glicko2Analytics import Glicko2Analytics
 from .GorAnalytics import GorAnalytics
 from .InMemoryStorage import InMemoryStorage
-from .RatingMath import rating_config, rating_to_rank, get_handicap_rank_difference
-from .EGFGameData import EGFGameData
-from .AGAGameData import AGAGameData
+from .RatingMath import get_handicap_rank_difference, rating_config, rating_to_rank
 
 __all__ = ["TallyGameAnalytics", "num2rank"]
 
