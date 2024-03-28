@@ -1,10 +1,18 @@
+import sqlite3
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, Tuple
 
+from analysis.util import cli
 from goratings.interfaces import Storage
+
+from .Config import config
 
 __all__ = ["InMemoryStorage"]
 
+cli.add_argument(
+    "--rating-history-db", dest="rating_history_db", type=str,
+    help="Path to DB for ratings history (not saved by default)",
+)
 
 class InMemoryStorage(Storage):
     _data: Dict[int, Any]
@@ -87,3 +95,39 @@ class InMemoryStorage(Storage):
             else:
                 break
         return [e[1] for e in self._match_history[player_id][-ct:]]
+
+    def save_rating_history(self, category: str) -> None:
+        if config.args.rating_history_db is None:
+            return
+        connection = sqlite3.connect(config.args.rating_history_db)
+        cursor = connection.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rating_history(
+                category TEXT,
+                player_id INTEGER,
+                timestamp INTEGER,
+                rating REAL,
+                deviation REAL,
+                volatility REAL
+            )""")
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS index_ratings_by_player
+                ON rating_history
+                (player_id,timestamp)
+            """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS index_ratings_by_category
+                ON rating_history
+                (category,player_id,timestamp)
+            """)
+        cursor.executemany("""
+            INSERT INTO rating_history(category,player_id,timestamp,rating,deviation,volatility)
+                VALUES (?,?,?,?,?,?)
+            """,
+            ((category, player, timestamp, r.rating, r.deviation, r.volatility)
+                for (player,history) in self._rating_history.items()
+                for (timestamp, r) in history
+            ),
+            )
+        connection.commit()
+        connection.close()

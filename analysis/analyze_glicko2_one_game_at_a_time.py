@@ -64,8 +64,8 @@ class OneGameAtATime(RatingSystem):
 
         self._storage.set(game.black_id, updated_black)
         self._storage.set(game.white_id, updated_white)
-        #self._storage.add_rating_history(game.black_id, game.ended, updated_black)
-        #self._storage.add_rating_history(game.white_id, game.ended, updated_white)
+        self._storage.add_rating_history(game.black_id, game.ended, updated_black)
+        self._storage.add_rating_history(game.white_id, game.ended, updated_white)
 
         return Glicko2Analytics(
             skipped=False,
@@ -98,6 +98,8 @@ tally = TallyGameAnalytics(storage)
 for game in game_data:
     analytics = engine.process_game(game)
     tally.add_glicko2_analytics(analytics)
+
+storage.save_rating_history("overall")
 
 tally.print()
 
