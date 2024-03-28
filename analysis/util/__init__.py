@@ -6,7 +6,14 @@ from .Glicko2Analytics import Glicko2Analytics
 from .GorAnalytics import GorAnalytics
 from .InMemoryStorage import InMemoryStorage
 from .OGSGameData import OGSGameData
-from .RatingMath import get_handicap_adjustment, get_handicap_rank_difference, rank_to_rating, rating_to_rank, set_optimizer_rating_points, set_exhaustive_log_parameters
+from .RatingMath import (
+    get_handicap_adjustment,
+    get_handicap_rank_difference,
+    rank_to_rating,
+    rating_to_rank,
+    set_exhaustive_log_parameters,
+    set_optimizer_rating_points,
+)
 from .SkipLogic import should_skip_game
 from .TallyGameAnalytics import TallyGameAnalytics, num2rank
 

@@ -1,6 +1,6 @@
 import argparse
 from math import exp, log, sqrt
-from typing import Callable, Dict, Union, List
+from typing import Callable, Dict, List, Union
 
 from .CLI import cli, defaults
 

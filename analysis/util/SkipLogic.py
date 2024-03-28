@@ -1,7 +1,4 @@
-from goratings.interfaces import (
-    GameRecord,
-    Storage,
-)
+from goratings.interfaces import GameRecord, Storage
 
 __all__ = [
     "should_skip_game",

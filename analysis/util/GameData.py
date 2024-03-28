@@ -3,10 +3,10 @@ from typing import Dict, Iterator
 
 from goratings.interfaces import GameRecord
 
+from .AGAGameData import AGAGameData
 from .CLI import cli, defaults
 from .Config import config
 from .EGFGameData import EGFGameData
-from .AGAGameData import AGAGameData
 from .OGSGameData import OGSGameData
 
 __all__ = ["GameData", "datasets_used"]
