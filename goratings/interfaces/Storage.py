@@ -32,3 +32,7 @@ class Storage(abc.ABC):
     @abc.abstractmethod
     def set_timeout_flag(self, player_id: int, tf: bool) -> None:
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def finalize(self) -> None:
+        raise NotImplementedError

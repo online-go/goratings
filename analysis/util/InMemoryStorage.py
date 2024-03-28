@@ -87,3 +87,6 @@ class InMemoryStorage(Storage):
             else:
                 break
         return [e[1] for e in self._match_history[player_id][-ct:]]
+
+    def finalize(self) -> None:
+        pass

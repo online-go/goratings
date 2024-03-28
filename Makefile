@@ -6,8 +6,8 @@ help:
 	virtualenv -ppython3 .venv
 	.venv/bin/pip install -r requirements.txt
 
-100k:
-	python -m goratings
+1M:
+	analysis/analyze_glicko2_one_game_at_a_time.py --games 1000000
 
 test: .venv
 	.venv/bin/tox -e py3
