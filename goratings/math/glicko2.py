@@ -46,8 +46,8 @@ class Glicko2Entry:
             0 if self.timestamp is None else self.timestamp,
         )
 
-    def copy(self, rating_adjustment: float = 0.0, rd_adjustment: float = 0.0) -> "Glicko2Entry":
-        ret = Glicko2Entry(self.rating + rating_adjustment, self.deviation + rd_adjustment, self.volatility, self.timestamp,)
+    def copy(self, adjustment: (float, float) = (0.0, 0.0)) -> "Glicko2Entry":
+        ret = Glicko2Entry(self.rating + adjustment[0], (self.deviation ** 2 + adjustment[1] ** 2) ** 0.5, self.volatility, self.timestamp,)
         return ret
 
     def expand_deviation_because_no_games_played(self, n_periods: int = 1) -> "Glicko2Entry":
@@ -81,7 +81,7 @@ class Glicko2Entry:
 
         return self
 
-    def expected_win_probability(self, white: "Glicko2Entry", handicap_adjustment: float, ignore_g: bool = False) -> float:
+    def expected_win_probability(self, white: "Glicko2Entry", handicap_adjustment: (float, float), ignore_g: bool = False) -> float:
         # Implementation extracted from glicko2_update below.
         if not ignore_g:
             def g() -> float:
@@ -90,7 +90,7 @@ class Glicko2Entry:
             def g() -> float:
                 return 1 / sqrt(1 + (3 * white.phi ** 2) / (pi ** 2))
 
-        E = 1 / (1 + exp(-g() * (self.rating + handicap_adjustment - white.rating) / GLICKO2_SCALE))
+        E = 1 / (1 + exp(-g() * (self.rating + handicap_adjustment[0] - white.rating) / GLICKO2_SCALE))
         return E
 
 
