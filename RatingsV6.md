@@ -18,7 +18,8 @@ OGS ratings system.
 ### Document organization
 
 - Summary of proposed changes
-- Overview of OGS Ratings v5, including known and perceived flaws
+- Background: Glicko-2
+- Backgorund: OGS Ratings v5
 - Details of each proposed change
 
 ### Legend
@@ -39,13 +40,150 @@ OGS ratings system.
 - Add ratings-grid-as-one-system script, with the goal of eventually using
   specific ratings categories for matching and handicaps
 - Improve predictive performance and volatility of ratings-grid-as-one-system
-- Evalute changes to how timeouts are handled, for each of correspondence and
+- Evaluate changes to how timeouts are handled, for each of correspondence and
   bots
 - Evaluate and/or increase correlation of ratings categories
 
-## OGS Ratings v5
+## Background: Glicko-2
 
-***TODO: add in description of Glicko-2 and OGS's game-at-a-time implementation***
+Here's a quick editorialized summary of the Glicko-2 rating system, based on
+the [Glicko-2 paper](http://www.glicko.net/glicko/glicko2.pdf) dated March 22,
+2022.
+
+### Basic definitions
+
+- $\mu$: the rating, an estimate of the mean of the playing strength
+  based on past performance
+    - $r = 173.7178\mu + 1500$: a user-friendly view of the rating
+- $\phi$: the rating deviation, a standard error for $\mu$
+    - $\textrm{RD} = 173.7178\phi$: a user-friendly view of the rating deviation
+    - $\phi^2$: the rating variance
+- $\sigma$: the rating volatility, how much the rating changes over time
+- $\tau$: system constant that constrains volatility over time; higher values
+  allow higher volatility
+
+### System constant
+
+Typically, reasonable values of $\tau$ are between 0.3 and 1.2.  Lower values
+such as $\tau = 0.2$ are reasonable if extremely improbable collections of game
+outcomes are expected.
+
+### New players
+
+The default is to initialize new players to a rating of 1500 ($\mu = 0$), RD of
+350 ($\phi = 2.01476$), and $\sigma = 0.6$.  Given prior knowledge about playing
+strength, it's okay to set other starting values.
+
+### Rating time periods
+
+Glicko-2 is designed to run periodically (e.g., once per day, week, or month).
+$\mu$, $\phi$, and $\sigma$ are updated based on game results over the period,
+based on actual game records.
+
+The ideal period length would have 10-15 games per active player.
+
+### Ratings update at end of period
+
+Ratings are updated at the end of each period, computing new values $\mu'$,
+$\phi'$, and $\sigma'$ based on the old values ($\mu$, $\phi$, and $\sigma$),
+game outcomes, and the rating and deviation of opponents in those games.
+
+A few definitions for the update:
+
+- $m$: the number of games played
+- $\mu_{1},...,\mu_{m}$: ratings of opponents in each game, taken from the beginning of
+  the rating period
+- $\phi_{1},...,\phi_{m}$: rating deviation of opponents in each game, taken from
+  the beginning of the rating period
+- $s_{1},...,s_{m}$: scores in each game ($0$ for a loss, $0.5$ for a tie, and
+  $1$ for a win)
+
+The basic update procedure (editorialized) is:
+
+- Step 3: accumulate $1/v$, which describes opponents' relative ratings and
+  their deviation;
+- Step 4a: accumulate $\Gamma$ (not in paper), which compares actual scores to expected scores;
+- Step 4b: compute $\Delta = v\Gamma$, an estimate of the ratings change;
+- Step 5: compute $\sigma'$, the new volatility, using $v$ and $\Delta$;
+- Step 6-7a: compute $\phi'$, the new deviation;
+- Step 7b: compute $\mu' = \mu + \phi'v\Gamma$, the new rating.
+
+#### Age the deviation using volatility if no games have been played
+
+If the player hasn't played any games in the period, the deviation should
+increase by the volatility.  All the steps reduce to the following:
+```math
+\begin{align}
+\sigma' &= \sigma
+\phi'^2 &= \phi^2 + \sigma^2
+\mu' &= \mu
+\end{align}
+```
+
+#### Accumulation of games
+
+$g()$, an opponent deviation scale, and $\textrm{E}()$, expected score, are
+helpers for the accumulators:
+```math
+\begin{align}
+g(\phi) &= \frac{1}{\sqrt{1 + 3\phi^2/\pi^2}} \\
+\textrm{E}(\mu, \mu_j, \phi_j) &=
+    \frac{1}{1 + e^{-g(\phi_j)(\mu - \mu_j)}}
+\end{align}
+```
+
+Games are accumulated into $1/v$ and $\Gamma$ like this:
+```math
+\begin{align}
+\frac{1}{v} &= \sum_{j=1}^{m}{g(\phi_j)^2\textrm{E}(\mu,\mu_j,\phi_j)
+    \lbrace 1 - \textrm{E}(\mu,\mu_j,\phi_j) \rbrace} \\
+\Gamma &= \sum_{j=1}^{m}{s_j - \textrm{E}(\mu,\mu_j,\phi_j)}
+\end{align}
+```
+
+#### Compute estimate of rating change
+
+Estimated rating change is:
+```math
+\Delta = v\Gamma
+```
+
+#### Compute new volatility
+
+Define $f()$:
+```math
+f(x) = \frac{e^x(\Delta^2 - (\phi^2 + v + e^x))}{2(\phi^2 + v + e^x)^2}
+    - \frac{x - \ln\sigma^2}{\tau^2}
+```
+Then set constants $A=\ln\sigma^2$ and $B=...$ to bracket $\ln(\sigma'^2)$, and
+run an iterative procedure until $f(A)=f(B)$ to find the new volatility
+$\sigma'$.
+
+See Step 5 of [Glicko-2 paper](http://www.glicko.net/glicko/glicko2.pdf) for
+the details omitted here.
+
+#### Compute new deviation
+
+The deviation is expanded by the new volatility, $\sigma'$, and then compressed
+by the game experiences, $v$:
+
+```math
+\begin{align}
+\phi^\ast &= \sqrt{\phi^2 + \sigma'^2} \\
+\phi' &= \frac{1}{\sqrt{1/\phi^{\ast 2} + 1/v}} \\
+\end{align}
+```
+
+#### Compute new rating
+
+Finally, the rating is computed using the new deviation:
+```math
+\mu' = \mu + \phi'v\Gamma
+```
+
+## Background: OGS Ratings v5
+
+***TODO: describe OGS's game-at-a-time implementation***
 
 ## Details of proposed changes for Ratings v6
 
@@ -160,10 +298,10 @@ Goals:
 
 - Change general rating categories to be weighted averages of specific
   categories, instead of independently computed Glicko-2 ratings
-
-***TODO: add math explainers for the interesting ones below***
-
 - For stale rating categories, blend in general rating categories
+
+***TODO: add subsections / math explainers for the bullets below***
+
 - Add per-user time periods for ratings updates, using incremental math to
   avoid high computation costs for periods with many games
 - When adding a new game, lock in rating/deviation of previous game to
@@ -230,9 +368,9 @@ Then compute the general rating, variance, and volatility as weighted averages:
 \phi^2_b &= \frac{w_{b_9}\phi^2_{b_9} + w_{b_{13}}\phi^2_{b_{13}}
                                       + w_{b_{19}}\phi^2_{b_{19}}}
                  {w_{b_9} + w_{b_{13}} + w_{b_{19}}} \\
-\sigma_b &= \frac{w_{b_9}\sigma_{b_9} + w_{b_{13}}\sigma_{b_{13}}
-                                      + w_{b_{19}}\sigma_{b_{19}}}
-                 {w_{b_9} + w_{b_{13}} + w_{b_{19}}} \\
+\sigma^2_b &= \frac{w_{b_9}\sigma^2_{b_9} + w_{b_{13}}\sigma^2_{b_{13}}
+                                          + w_{b_{19}}\sigma^2_{b_{19}}}
+                   {w_{b_9} + w_{b_{13}} + w_{b_{19}}} \\
 \end{align}
 ```
 Note: the deviation, $\phi$, is the square root of the variance, $\phi^2$.
@@ -294,16 +432,16 @@ the general rating.
 0 & \textnormal{if $\phi_s \geq 1.43911$}
 \\w_g\phi^2_g & \textnormal{otherwise}
 \end{cases} \\
-\sigma &= \sigma_s +
+\sigma^2 &= \sigma^2_s +
 \begin{cases}
 0 & \textnormal{if $\sigma_s \geq 1.2$}
-\\w_g\sigma_g & \textnormal{otherwise}
+\\w_g\sigma^2_g & \textnormal{otherwise}
 \end{cases} \\
 \end{align}
 ```
 
 
-### Evalute changes to how timeouts are handled, for each of correspondence and bots
+### Evaluate changes to how timeouts are handled, for each of correspondence and bots
 
 - Alternative #1: Annull all games lost by timeout (status quo for bots)
 - Alternative #2: Annull games 2+ mass timeout (status quo for correspondence)
