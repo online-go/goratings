@@ -37,9 +37,9 @@ OGS ratings system.
   strange komi values 🔃
 - Increase rating deviation as rating ages ✅
 - Extend metrics analyzed when tallying
-- Add ratings-grid-as-one-system script, with the goal of eventually using
+- Add cohesive-ratings-grid script, with the goal of eventually using
   specific ratings categories for matching and handicaps
-- Improve predictive performance and volatility of ratings-grid-as-one-system
+- Improve predictive performance and volatility of cohesive-ratings-grid
 - Evaluate changes to how timeouts are handled, for each of correspondence and
   bots
 - Evaluate and/or increase correlation of ratings categories
@@ -183,7 +183,82 @@ Finally, the rating is computed using the new deviation:
 
 ## Background: OGS Ratings v5
 
-***TODO: describe OGS's game-at-a-time implementation***
+OGS ratings (v5) uses a modified version of Glicko-2, where rating periods are
+variable-length.  A player's rating is updated after each game.  The ratings
+period has exactly one game in it, and the period's length is the time since
+the last game.
+
+Note that Glicko-2 documentation suggests it works best when active players
+have 10-15 games on average in each period, but on OGS every period has exactly
+one game.
+
+A few notes about this system:
+
+- Easy to compute.
+- Easy to understand/predict the effect of each individual game on ratings.
+- Every period looks to Glicko-2 like an "outlier", where the player has
+  "surprisingly" either won or lost *all* of their games.
+    - Ideally, a rating should be stable if there's lots of data and the
+      player's strength is consistent.
+    - On OGS, the deviation stays relatively high and ratings are volatile
+      (move around a lot) as a result.
+- Deviation ought to increase after a long time with no games, but doesn't.
+
+### The ratings grid and ratings categories
+
+Most players have different strengths at different board sizes and game speeds.
+OGS ratings (v5) has a grid of ratings for different rating categories.
+
+The primary rating is the general rating category:
+
+- overall
+
+"Overall" is used for match-making (automatch) and for setting handicaps.
+
+There are also nine "specific" rating categories, representing board size and
+game speed:
+
+- blitz-9x9
+- blitz-13x13
+- blitz-19x19
+- live-9x9
+- live-13x13
+- live-19x19
+- correspondence-9x9
+- correspondence-13x13
+- correspondence-19x19
+
+... and six general categories in the middle:
+
+- blitz
+- live
+- correspondence
+- 9x9
+- 13x13
+- 19x19
+
+... for 16 ratings total.
+
+These are each separately maintained ratings:
+
+- After a player finishes a game, their rating is update in the three relevant
+  categories.
+- For "overall", the ratings are updated as specified above.
+- The other two ratings use take the opponent's rating and deviation ($\mu_{j}$
+  and $\phi_{j}$) from the "overall" category.
+
+A few notes about the rating categories:
+
+- Players get some visibility into their playing strength in different
+  categories.
+- Overall has a recency bias, dominated by the player's most recent games.
+  Thus, automatch and handicap settings are based on the recent games as well.
+    - Great if the player has had a dramatic change in strength while only
+      playing with one specific category.
+    - Not great if the player consistently has a different strength in
+      different categories.
+    - OGS forum regulars recommend maintaining multiple accounts, one for each
+      specific rating category, as standard practice to work around this.
 
 ## Details of proposed changes for Ratings v6
 
@@ -263,7 +338,7 @@ Goals:
   rank, by deviation, by game frequency, and by rating category
 - Remove old metrics we don't look at any more
 
-### Add ratings-grid-as-one-system script, with the goal of eventually using specific ratings categories for matching and handicaps
+### Add cohesive-ratings-grid script
 
 Goals:
 
@@ -276,15 +351,18 @@ Goals:
 
 #### Details
 
-- For bring-up, each rating category operates in isolation
+- For bring-up, each rating category is updated in isolation
+    - Note: Initially, like ratings v5, except opponent rating/deviation come
+      from the same category.
 - Single TallyGameAnalytics instance, which tallies each game exactly once, in
   its most specific rating category
-- Measures predictive performance of specific rating categories
-- Ignores predictive performance of general rating categories
-- Historical rating volatility metrics look at union of rating graphs,
-  including specific and general rating categories
+    - Note: Existing ratings-grid scripts have a separate TallyGameAnalytics
+      instance for each ratings category.
+    - Measures predictive performance of specific rating categories
+    - Ignores predictive performance of general rating categories
+- Historical rating volatility metrics should look at all 16 rating graphs.
 
-### Improve predictive performance and volatility of ratings-grid-as-one-system
+### Improve predictive performance and volatility of cohesive-ratings-grid
 
 Goals:
 
