@@ -19,7 +19,7 @@ OGS ratings system.
 
 - Summary of proposed changes
 - Background: Glicko-2
-- Backgorund: OGS Ratings v5
+- Background: OGS Ratings v5
 - Details of each proposed change
 
 ### Legend
@@ -100,7 +100,7 @@ A few definitions for the update:
 
 The basic update procedure (editorialized) is:
 
-- Step 3: accumulate $1/v$, which describes opponents' relative ratings and
+- Step 3: accumulate $v^{-1}$, which describes opponents' relative ratings and
   their deviation;
 - Step 4a: accumulate $\Gamma$ (not in paper), which compares actual scores to expected scores;
 - Step 4b: compute $\Delta = v\Gamma$, an estimate of the ratings change;
@@ -114,8 +114,8 @@ If the player hasn't played any games in the period, the deviation should
 increase by the volatility.  All the steps reduce to the following:
 ```math
 \begin{align}
-\sigma' &= \sigma
-\phi'^2 &= \phi^2 + \sigma^2
+\sigma' &= \sigma \\
+\phi'^2 &= \phi^2 + \sigma^2 \\
 \mu' &= \mu
 \end{align}
 ```
@@ -132,10 +132,10 @@ g(\phi) &= \frac{1}{\sqrt{1 + 3\phi^2/\pi^2}} \\
 \end{align}
 ```
 
-Games are accumulated into $1/v$ and $\Gamma$ like this:
+Games are accumulated into $v^{-1}$ and $\Gamma$ like this:
 ```math
 \begin{align}
-\frac{1}{v} &= \sum_{j=1}^{m}{g(\phi_j)^2\textrm{E}(\mu,\mu_j,\phi_j)
+v^{-1} &= \sum_{j=1}^{m}{g(\phi_j)^2\textrm{E}(\mu,\mu_j,\phi_j)
     \lbrace 1 - \textrm{E}(\mu,\mu_j,\phi_j) \rbrace} \\
 \Gamma &= \sum_{j=1}^{m}{s_j - \textrm{E}(\mu,\mu_j,\phi_j)}
 \end{align}
@@ -170,7 +170,7 @@ by the game experiences, $v$:
 ```math
 \begin{align}
 \phi^\ast &= \sqrt{\phi^2 + \sigma'^2} \\
-\phi' &= \frac{1}{\sqrt{1/\phi^{\ast 2} + 1/v}} \\
+\phi' &= \frac{1}{\sqrt{1/\phi^{\ast 2} + v^{-1}}} \\
 \end{align}
 ```
 
@@ -353,7 +353,7 @@ Goals:
 
 - For bring-up, each rating category is updated in isolation
     - Note: Initially, like ratings v5, except opponent rating/deviation come
-      from the same category.
+      from the same category as the player.
 - Single TallyGameAnalytics instance, which tallies each game exactly once, in
   its most specific rating category
     - Note: Existing ratings-grid scripts have a separate TallyGameAnalytics
@@ -361,6 +361,7 @@ Goals:
     - Measures predictive performance of specific rating categories
     - Ignores predictive performance of general rating categories
 - Historical rating volatility metrics should look at all 16 rating graphs.
+    - Measure volatility of both specific and general rating categories.
 
 ### Improve predictive performance and volatility of cohesive-ratings-grid
 
@@ -377,16 +378,12 @@ Goals:
 - Change general rating categories to be weighted averages of specific
   categories, instead of independently computed Glicko-2 ratings
 - For stale rating categories, blend in general rating categories
-
-***TODO: add subsections / math explainers for the bullets below***
-
-- Add per-user time periods for ratings updates, using incremental math to
-  avoid high computation costs for periods with many games
-- When adding a new game, lock in rating/deviation of previous game to
-  reflect how much of its period it represents
+- Add per-user, fixed-length time periods for ratings updates, using
+  incremental computation to mitigate computation costs
+- Fine-tune mid-period "observed" rating/deviation
 - Add metrics for games-per-period cross-sectioned by rank, by deviation,
   and by rating category, and tune period length of each rating category
-- Tune the τ system constant for each rating category; consider lower
+- Tune the $\tau$ system constant for each rating category; consider lower
   values for correspondence to counteract naturally high volatility
 
 #### Ratings flow: general vs. specific, last vs. effective, and aging
@@ -517,6 +514,253 @@ the general rating.
 \end{cases} \\
 \end{align}
 ```
+
+#### Per-user, fixed-length time periods with incremental computation
+
+Set a fixed time period, $P$, as a new system constant to use with each
+specific rating category.  E.g., setting categories to "one week" is fine, but
+allow it to be changed independently for each rating category.
+
+Thus we have system constants:
+
+- $P$: system constant that sets the length of a time period
+- $\tau$: system constant that constrains volatility over time
+
+Previously, we stored for each rating:
+
+- $\mu$: rating (or $r = 173.7178\mu + 1500$)
+- $\phi$: rating deviation (or $\textrm{RD} = 173.7178\phi$)
+- $\sigma$: rating volatility
+
+Instead, store:
+
+- Initial rating for the period
+    - $\mu$: rating
+    - $\phi$: rating deviation
+    - $\sigma$: rating volatility
+- Estimated rating at end of period
+    - $\mu'$: rating
+    - $\phi'$: rating deviation
+    - $\sigma'$: rating volatility
+- Period details:
+    - $t_{e}$: the timestamp for the end of the rating period
+    - $v^{-1}$: accumulation of opponent ratings and deviation for the period
+    - $\Gamma$: accumulation of user's performance in the period
+
+Perform a ratings update for each game.
+
+First, define:
+
+- the game's timestamp as $t_{g}$,
+- this player's last rating subscripted with $p$ (as in $\mu_{p}$, $\mu_{p}'$,
+  $t_{ep}$, etc.), and
+- the opponent's last rating subscripted with $o$ (as in $\mu_{o}$, $\mu_{o}'$,
+  $t_{eo}$, etc.).
+
+Second, determine the opponent's observed rating and deviation, $\mu_{j}$ and
+$\phi_{j}$, for the purposes of updating this player's rating.
+
+If the opponent has no previous games, choose appropriate starting values.
+
+Else, take the rating from the opponent's last period, aging the deviation if
+the rating is old:
+
+```math
+\mu_j =
+\begin{cases}
+\mu_o & t_g \leq t_{eo}
+\\\mu_o' & t_g > t_{eo}
+\end{cases}
+\quad \quad
+\phi_j =
+\begin{cases}
+\phi_o & t_g \leq t_{eo}
+\\\sqrt{\phi_o'^2 + \frac{t_g - t_{eo}}{P}\sigma'^2} & t_g > t_{eo}
+\end{cases}
+```
+
+Third, determine whether this game starts a new period for this player or
+continues an old one, and accumulate the game result in $v^{-1}$ and $\Gamma$:
+
+If there is no previous game, set $\mu$, $\phi$, and $\sigma$ to appropriate
+starting values, and start a period at $t_{g}$:
+
+```math
+t_e = t_g + P
+```
+
+Else if $t_{g} > t_{ep}$, start a new period at $t_{g}$ and age the deviation
+for the gap between periods:
+
+```math
+\begin{align}
+t_e &= t_g + P, \quad
+\mu = \mu', \quad
+\sigma = \sigma' \\
+\phi &= \sqrt{\phi'^2 + \frac{t_g - t_{ep}}{P}\sigma'^2}
+\end{align}
+```
+
+In both cases so far, this game starts a new period.  Initialize $v^{-1}$ and
+$\Gamma$ from this game result:
+
+```math
+\begin{align}
+v^{-1} &= g(\phi_j)^2\textrm{E}(\mu,\mu_j,\phi_j)
+    \lbrace 1 - \textrm{E}(\mu,\mu_j,\phi_j) \rbrace \\
+\Gamma &= s_j - \textrm{E}(\mu,\mu_j,\phi_j)
+\end{align}
+```
+
+Else, $t_{g} \leq t_{ep}$ and this game is part of an existing period.
+Accumulate this game's result with the previous $v^{-1}$ and $\Gamma$:
+
+```math
+\begin{align}
+t_e &= t_{ep}, \quad
+\mu = \mu_p, \quad
+\phi = \phi_p, \quad
+\sigma = \sigma_p \\
+v^{-1} &= v_p^{-1} + g(\phi_j)^2\textrm{E}(\mu,\mu_j,\phi_j)
+    \lbrace 1 - \textrm{E}(\mu,\mu_j,\phi_j) \rbrace \\
+\Gamma &= \Gamma_p + s_j - \textrm{E}(\mu,\mu_j,\phi_j)
+\end{align}
+```
+
+Fourth, compute $\Delta = v\Gamma$, $\sigma'$, $\phi'$, and $\mu'$, as in the
+Glicko-2 background section.
+
+#### Fine-tune mid-period "observed" rating/deviation
+
+Reduce the volatility in the observed rating graph within time periods by
+scaling the rating and deviation change according to the proportion of the
+period that game accounts for.
+
+- Define $\mu_{N}$ and $\phi_{N}$, the observed rating and deviation at
+  timestamp $N$ (now), using one of the alternatives described below.
+- Use $\mu_{N}$ and $\phi_{N}$ for:
+    - measuring predictive performance and historical volatility
+    - eventually, in OGS, for automatch and setting handicap
+- Consider using $\mu_{N}$ and $\phi_{N}$ to set $\mu_{j}$ and $\phi_{j}$ when
+  observing opponent ratings during a ratings update.
+
+Here are a few alternatives to implement and evaluate:
+
+##### Last full period
+
+As defined above, use the rating from the last completed time period, and age
+the deviation to the current timestamp.  This is the formula used above for
+$\mu_{j}$ and $\phi_{j}$.
+
+```math
+\mu_N =
+\begin{cases}
+\mu & N \leq t_e
+\\\mu' & N > t_e
+\end{cases}
+\quad \quad
+\phi_N =
+\begin{cases}
+\phi & N \leq t_e
+\\\sqrt{\phi'^2 + \frac{N - t_e}{P}\sigma'^2} & N > t_e
+\end{cases}
+```
+
+##### Estimated new rating
+
+Or, we could use the estimated new rating, and just age the deviation.
+
+```math
+\mu_N = \mu'
+\quad \quad
+\phi_N =
+\begin{cases}
+\phi & N \leq t_e
+\\\sqrt{\phi'^2 + \frac{N - t_e}{P}\sigma'^2} & N > t_e
+\end{cases}
+```
+
+##### Scale the estimated new rating
+
+Or, we could scale the estimated rating according to how much of the period has
+passed by the time of the observation $N$ (typically, at the time of the next
+game).
+
+Given $t_{s} = t_{e} - P$, we have:
+
+```math
+\mu_N =
+\begin{cases}
+\frac{(N - t_s)\mu + (t_e - N)\mu'}{P} & N \leq t_e
+\\\mu' & N > t_e
+\end{cases}
+\quad \quad
+\phi_N =
+\begin{cases}
+\sqrt{\frac{(N - t_s)\phi^2 + (t_e - N)\phi'^2}{P}} & N \leq t_e
+\\\sqrt{\phi'^2 + \frac{N - t_e}{P}\sigma'^2} & N > t_e
+\end{cases}
+```
+
+##### Compute a rating for a partial period
+
+Or, we could compute $\mu_{N}$ and $\phi_{N}$ by inserting a scaling factor
+$\alpha_{N}$ in the Glicko-2 formulas to evaluate a partial period.
+
+Assuming $N < t_{e}$, we could keep $\sigma$ or $\sigma'$ and estimate a
+partial period like this:
+
+```math
+\begin{align}
+\alpha_N &= \frac{N - (t_e - P)}{P} \\
+\Delta_N &= \alpha_Nv\Gamma \\
+\sigma_N &= \sigma | \sigma' \\
+\phi^\ast_N &= \sqrt{\phi^2 + \alpha_N\sigma_N^2} \\
+\phi_N &= \frac{1}{\sqrt{1/\phi^{\ast 2}_N + \alpha_Nv^{-1}}} \\
+\mu_N &= \mu + \alpha_N\phi'v\Gamma
+\end{align}
+```
+
+Or we could compute $\sigma_{N}$ more precisely for the partial period by
+defining:
+
+```math
+f(x) = \frac{e^x(\Delta^2 - (\alpha_N\phi^2 + v + e^x))}{2(\alpha_N\phi^2 + v + e^x)^2}
+    - \frac{x - \ln\sigma^2}{\tau^2}
+```
+
+... and using that to compute $\sigma_{N}$.
+
+#### Add games-per-period metrics and tune period length
+
+Add games-per-period metric, which shows the average number of games per period
+for all players in each specific rating category.
+
+For each rating category:
+
+- For each player, compute the average games per period by dividing the number
+  of total rated games and by the number of new periods that player had.
+    - Ignores time between periods, when the player was inactive.
+- Compute both the mean and median of those averages, to understand how many
+  games per period an average player experiences.
+- Show cross-sections for bots-only vs humans-only vs humans+bots.
+- Show cross-sections by rank ranges and by deviation ranges.
+
+Using these data, tune the period length separately for each rating category,
+in each case aiming to get the mean games-per-period into the 10-15 game range.
+
+Likely, we want to tune the humans-only games-per-period to the 10-15 games
+range, but we might also experiment with tuning the humans+bots metric.
+
+#### Tune the $\tau$ system constant for each rating category
+
+Tune the $\tau$ system constant for each rating category, optimizing for low
+historical volatility and high predictive performance.
+
+- Consider lower values for correspondence to counteract naturally high
+  volatility in playing strength.
+- Consider higher values in rating categories that have long time periods to
+  ensure ratings adjust quickly enough.
 
 
 ### Evaluate changes to how timeouts are handled, for each of correspondence and bots
