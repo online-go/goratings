@@ -52,6 +52,27 @@ rating_config: Dict[str, Union[str, float]] = {}
 optimizer_rating_control_points: List[float]
 
 
+HANDICAP_ERROR_KOMI=0.5
+HANDICAP_ERROR_EXTREME=9
+HANDICAP_ERROR_EXTREME_BASE=1.5
+
+handicap_error = cli.add_argument_group("rating error variables")
+handicap_error.add_argument(
+    "--handicap-error-komi", dest="handicap_error_komi", type=float,
+    default=HANDICAP_ERROR_KOMI,
+    help="error to add if handicap includes a significant komi adjustment",
+)
+handicap_error.add_argument(
+    "--handicap-error-extreme", dest="handicap_error_extreme", type=int,
+    default=HANDICAP_ERROR_EXTREME,
+    help="number of ranks before extreme handicap error is 1; 0 to turn off"
+)
+handicap_error.add_argument(
+    "--handicap-error-extreme-base", dest="handicap_error_extreme_base", type=float,
+    default=HANDICAP_ERROR_EXTREME_BASE,
+    help="power base to scale error for extreme handicaps"
+)
+
 def rank_to_rating(rank: float) -> float:
     return _rank_to_rating(rank)
 
@@ -123,8 +144,29 @@ def get_handicap_rank_difference(handicap: int, size: int, komi: float, rules: s
     return black_head_start / stone_value_territory
 
 
-def get_handicap_adjustment(player: str, rating: float, handicap: int, size: int, komi: float, rules: str) -> float:
+def get_handicap_adjustment(player: str, rating: float, handicap: int, size: int, komi: float, rules: str) -> (float, float):
+    global HANDICAP_ERROR_KOMI
+    global HANDICAP_ERROR_EXTREME
+    global HANDICAP_ERROR_EXTREME_BASE
+
     rank_difference = get_handicap_rank_difference(handicap, size, komi, rules)
+
+    # Add ±0.5 error if the rank difference isn't (mostly) coming from handicap
+    # stones.
+    komi_error = 0
+    if abs(rank_difference) < (handicap - 0.5)/1.5:
+        komi_error = HANDICAP_ERROR_KOMI
+    elif abs(rank_difference) > (handicap + 0.5)*1.5:
+        komi_error = HANDICAP_ERROR_KOMI
+
+    # Scale error by rank difference, with ±1 error at rank difference of 9.
+    if HANDICAP_ERROR_EXTREME > 0:
+        rank_error = max(
+            komi_error,
+            (abs(rank_difference)/HANDICAP_ERROR_EXTREME + komi_error)**HANDICAP_ERROR_EXTREME_BASE,
+        )
+    else:
+        rank_error = komi_error
 
     # Apply the +/- for white/black in the "rank" domain where it's symmetric.
     # Note that the "rating" domain is log-scale, where +/- is asymmetric.
@@ -133,8 +175,13 @@ def get_handicap_adjustment(player: str, rating: float, handicap: int, size: int
         effective_rank = rating_to_rank(rating) + rank_difference
     else:
         effective_rank = rating_to_rank(rating) - rank_difference
+    effective_rating = rank_to_rating(effective_rank)
 
-    return rank_to_rating(effective_rank) - rating
+    # Convert the error to the rating domain.
+    rating_error = max(rank_to_rating(effective_rank + rank_error) - effective_rating,
+                       effective_rating - rank_to_rating(effective_rank - rank_error))
+
+    return (effective_rating - rating, rating_error)
 
 
 def set_optimizer_rating_points(points: List[float]) -> None:
@@ -148,6 +195,12 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
     global A
     global C
     global D
+    global HANDICAP_ERROR_KOMI
+    global HANDICAP_ERROR_EXTREME
+    global HANDICAP_ERROR_EXTREME_BASE
+    HANDICAP_ERROR_KOMI=args.handicap_error_komi
+    HANDICAP_ERROR_EXTREME=args.handicap_error_extreme
+    HANDICAP_ERROR_EXTREME_BASE=args.handicap_error_extreme_base
 
     system: str = args.ranks
     a: float = args.a
@@ -318,8 +371,8 @@ def configure_rating_to_rank(args: argparse.Namespace) -> None:
             #   Sensei's Library: <https://senseis.xmp.net/?Komi#toc8>
             # - "Perfect Komi" on the "Komi (Go)" page at Wikipedia:
             #   <https://en.wikipedia.org/wiki/Komi_(Go)#Perfect_Komi>
-            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="japanese", komi=6), 8) == 0
-            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="aga", komi=7), 8) == 0
+            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="japanese", komi=6)[0], 8) == 0
+            assert round(get_handicap_adjustment(player, 1000.0, 0, size=size, rules="aga", komi=7)[0], 8) == 0
 
 
 def lerp(x:float, y:float, a:float):
