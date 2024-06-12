@@ -86,14 +86,75 @@ class OneGameAtATime(RatingSystem):
             white_updated_rating=updated_white.rating,
         )
 
+cli.add_argument(
+    "--detect-starting-ratings", dest="detect_starting_ratings",
+    const=1, default=False, action="store_const",
+    help="Detect starting ratings by running analysis twice",
+)
+
+def detect_starting_ratings(storage: InMemoryStorage):
+    detection_storage = InMemoryStorage(Glicko2Entry)
+    detection_engine = OneGameAtATime(detection_storage)
+    detection_data = GameData()
+
+    def parse_rank(rank: str) -> float:
+        if rank[-1:] == "k":
+            return 30 - float(rank[:-1])
+        if rank[-1:] == "d":
+            return 30 + float(rank[:-1]) - 1
+        raise ValueError("invalid rank")
+
+    STARTING_RANK_DEVIATION = 250
+    PROVISIONAL_RANK_CUTOFF = 160
+    def make_starting_rating(rank: str) -> Glicko2Entry:
+        rating = rank_to_rating(parse_rank(rank))
+        return Glicko2Entry(rating=rating, deviation=STARTING_RANK_DEVIATION)
+    def make_rating_threshold(rank: str) -> float:
+        return rank_to_rating(parse_rank(rank))
+
+    starting_rating_newtogo = make_starting_rating("20k")
+    starting_rating_basic = make_starting_rating("16k")
+    starting_rating_intermediate = make_starting_rating("8k")
+    starting_rating_advanced = make_starting_rating("2k")
+
+    weaker_threshold_detect_newtogo = make_rating_threshold("40k")
+    weaker_threshold_detect_basic = make_rating_threshold("20k")
+    weaker_threshold_detect_intermediate = make_rating_threshold("12k")
+    stronger_threshold_detect_advanced = make_rating_threshold("6k")
+    ignore = set()
+    def update_starting_rating(player: int, rating: float, deviation: float) -> None:
+        if deviation > PROVISIONAL_RANK_CUTOFF:
+            return
+        if player in ignore:
+            return
+
+        # First non-provisional rating.
+        if rating < weaker_threshold_detect_newtogo:
+            storage.set(player, starting_rating_newtogo)
+        elif rating < weaker_threshold_detect_basic:
+            storage.set(player, starting_rating_basic)
+        elif rating < weaker_threshold_detect_intermediate:
+            storage.set(player, starting_rating_intermediate)
+        elif rating > stronger_threshold_detect_advanced:
+            storage.set(player, starting_rating_advanced)
+        ignore.add(player)
+
+    for game in detection_data:
+        result = detection_engine.process_game(game)
+        update_starting_rating(result.game.black_id, result.black_rating, result.black_deviation)
+        update_starting_rating(result.game.white_id, result.white_rating, result.white_deviation)
 
 
 # Run
 config(cli.parse_args(), "glicko2-one-game-at-a-time")
+
 game_data = GameData()
 storage = InMemoryStorage(Glicko2Entry)
 engine = OneGameAtATime(storage)
 tally = TallyGameAnalytics(storage)
+
+if config.args.detect_starting_ratings:
+    detect_starting_ratings(storage)
 
 for game in game_data:
     analytics = engine.process_game(game)
